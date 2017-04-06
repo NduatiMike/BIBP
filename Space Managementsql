@@ -1,0 +1,175 @@
+  --------------------CHECK WHERE SPACE IS PER TABLESPACE ------------------------
+  
+  SELECT         /* +full(DBA_FREE_SPACE) PARALLEL(DBA_FREE_SPACE,50) */               /*+ parallel(22)*/
+  nvl(b.tablespace_name,
+               nvl(a.tablespace_name,'UNKOWN')) name,
+         round(Gbytes_alloc)Gbytes,
+         round(Gbytes_alloc - nvl(Gbytes_free,0)) used,
+         nvl(round(Gbytes_free),0) free,
+         round((Gbytes_alloc - nvl(Gbytes_free,0)) / Gbytes_alloc)*100 pct_used,
+         nvl(round(largest),0) largest
+  from ( select sum(bytes)/1024/1024/1024 Gbytes_free,
+                max(bytes)/1024/1024/1024 largest,
+                tablespace_name
+         from  sys.DBA_FREE_SPACE
+         where 1=1
+--         and tablespace_name like '%201610'
+         group by tablespace_name ) a,
+       ( select sum(bytes)/1024/1024/1024 Gbytes_alloc,
+                tablespace_name
+         from sys.dba_data_files
+          where 1=1
+--          and tablespace_name like '%201610'
+         group by tablespace_name )b
+  where a.tablespace_name (+) = b.tablespace_name
+  and a.tablespace_name like 'TS_STG_GEN_M_3M_201608'
+  order by name
+  ;
+
+---------WHAT IS USING THE TABLESPACE ------------------------------------------
+--CREATE TABLE INDDROP AS 
+--DROP TABLE INDDROP PURGE;
+
+ select /*+parallel(2)*/ 
+a.*
+--row_number () over (order by partition_name desc) rownumbr, 
+--'ALTER INDEX ' || OWNER || '.' ||SEGMENT_NAME || ' REBUILD SUBPARTITION ' || PARTITION_NAME || '  tablespace TS_BIB_CDR_M_3M_201611 parallel 16 ;' statement
+-- DISTINCT '''' ||SEGMENT_NAME||'''' ||','
+--'DROP TABLE ' ||OWNER|| '.'  ||SEGMENT_NAME || ' PURGE ;' 
+from dba_segments a where 
+ TABLESPACE_NAME  like '%TS_STG_GEN_M_3M_201608%'
+-- and 
+-- SEGMENT_NAME like '%CTS%' 
+-- OR SEGMENT_NAME like '%PEX%'
+-- OR segment_name like '%CTX%')
+-- AND SEGMENT_TYPE NOT LIKE  '%INDEX%'
+-- and partition_name  like '%2017%'
+;
+/
+
+
+------------------------DROP PARTITIONS-----------------------------------------
+
+SELECT * FROM  BIBCDRDROP1 ORDER BY rownumbr DESC;
+
+DROP TABLE BIBCDRDROP1;
+
+
+--create table BIBCDRDROP1 as 
+
+ SELECT
+-- A.*,
+row_number () over (order by partition_name desc) rownumbr, 
+'ALTER TABLE ' ||TABLE_OWNER|| '.' || TABLE_NAME || ' DROP partition '  ||PARTITION_NAME || ';' statement
+FROM    dba_tab_partitions 
+WHERE 
+1=1
+AND TABLESPACE_NAME ='TS_I_POSTPAID_Z'
+--AND TABLE_OWNER like '%IA_USER%'
+--AND TABLE_NAME in 
+--(
+--'I_POSTPAID_ADDRESS',
+--'I_UNBILLED_USAGE'
+--) 
+And  SUBSTR(partition_name , 3) < '20170101'
+--and partition_name like '%201608%'
+ORDER BY PARTITION_NAME
+;
+/
+
+
+select * from BIBCDRDROP1;
+
+
+
+
+SELECT * FROM BIB_SUB_MOVE ORDER BY rownumbr DESC;
+--CREATE TABLE BIB_SUB_MOVE AS 
+
+SELECT 
+--A.*,
+row_number () over (order by partition_name desc) rownumbr, 
+ 'ALTER TABLE ' || table_owner || '.'
+       ||table_name
+       ||' MOVE SUBPARTITION '
+       ||SUBPARTITION_NAME
+       ||' TABLESPACE TS_BIB_CDR_M_3M_201611  parallel 32; ' STATEMENT
+FROM   _subpartitions a
+WHERE 1=1
+AND TABLESPACE_NAME  like  'TS_BIB_CDR_M_3M_201610'
+--and PARTITION_NAME like '%P_20160606_SP04%'
+AND TABLE_OWNER = 'BIB_CDR'
+--and TABLE_NAME LIKE ''
+--and SUBPARTITION_NAME like 'P_20160131%'
+;
+
+
+----------------FIX PARTITION NAMES ---------------------------------------------
+
+begin
+  DW_BIB_MAINT_UTL.FIX_PARTITION_NAMES('IA_USER', 'I_BILLING_ACCOUNT');
+dw_bib_utl.RELEASE_SESSION_USER_LOCKS; 
+  
+end;
+/
+
+------------------RENAME PARTITIONS -----------------------------------------------
+
+ select 'alter table '||table_owner||'.'||table_name ||' rename partition '|| partition_name||' to P_'||to_char(to_date(substr(partition_name,3,7)||'1','YYYYMMDD')-1,'YYYYMMDD')||';'
+from all_tab_partitions where partition_name like 'P_20____00'
+AND TABLE_OWNER = 'BIB_CDR'
+AND TABLESPACE_NAME = 'TS_BIB_CDR_M_3M_201606' ;
+/
+
+
+
+alter tablespace TS_BIB_CDR_M_3M_201610 resize 1G;
+alter tablespace TS_BIB_M_3M_201606 read only ;
+
+
+------------------------TABLE PARTITIONS ------------------------------------------
+
+
+ SELECT row_number () over (order by partition_name desc) as rownumber,
+ 'ALTER TABLE ' ||TABLE_OWNER|| '.' || TABLE_NAME || ' DROP partition '  ||PARTITION_NAME || ';'  sttmnt
+ FROM    dba_tab_partitions A
+WHERE 
+--1=1a
+TABLESPACE_NAME = 'TS_BIB_CDR_M_3M_201610'
+--AND TABLE_OWNER like '%BIB%'
+--AND SEGMENT_TYPE = 'TABLE PARTITION'
+--AND TABLE_NAME like  '%FCT%'
+--(
+--'FCT_CDR_RECHARGE',
+--'FCT_CDR_TAP_IN_SUMD'
+--) 
+--And  SUBSTR(partition_name , 3) >  '20160631'
+ORDER BY PARTITION_NAME
+;
+
+--'ALTER INDEX ' || INDEX_OWNER || '.' ||INDEX_NAME || ' REBUILD SUBPARTITION ' || SUBPARTITION_NAME || '  tablespace TS_BIB_CDR_M_13M_201703  parallel 16 ;'
+
+--------------------------------------------------------------------------------from ray ---------------------------------------------------------------------------------------------------------------------------------
+
+select  a.*, c.*,
+a.tablespace_name,retention_value, 
+--'alter table '||table_owner||'.'||a.table_name||' move subpartition '||subpartition_name||' tablespace TS_'||TABLE_OWNER||'_M_7M_'||substr(partition_name,3,6)||' parallel 16;'
+'alter index '||index_owner||'.'||a.index_name||' rebuild subpartition '||subpartition_name||' tablespace TS_'||INDEX_OWNER||'_M_'||retention_value||'M_'||substr(subpartition_name,3,6)||' parallel 16 online;'
+--'alter index '||index_owner||'.'||a.index_name||' rebuild online partition '||partition_name||' tablespace TS_'||INDEX_OWNER||'_M_'||retention_value||'M_'||substr(partition_name,3,6)||' parallel 16;'
+--'alter index '||index_owner||'.'||a.index_name||' modify default attributes for partition '||partition_name||' tablespace TS_'||INDEX_OWNER||'_M_'||retention_value||'M_'||substr(partition_name,3,6)||'_REC;'
+--'alter index '||index_owner||'.'||a.index_name||' rebuild subpartition '||subpartition_name||' tablespace TS_BIB_CDR_M_25M_201701 parallel 16;'
+from dba_ind_subpartitions a,bib_ctl.dw_table_metadata b,dba_indexes c
+where a.index_name = c.index_name
+and c.table_name = b.table_name
+--and a.partition_name like 'P_201%'
+--and b.retention_value = 7
+and a.index_name like '%MSC_VOICE_TR%'
+and c.status = 'UNUSABLE'
+--and substr(partition_name,3,6)< '201401'
+--and a.table_owner = 'BIB'
+--and (a.tablespace_name like 'TS_BIB_CDR_M_5M_201612') 
+--group by a.tablespace_name,a.index_owner,a.index_name,subpartition_name,substr(subpartition_name,3,6),retention_value
+--group by a.tablespace_name,a.table_name,b.retention_value
+order by 1 DESC ;
+
+

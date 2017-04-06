@@ -1,0 +1,43 @@
+--
+-- MANUAL pass-thru of BATCHES for GROUP TASKS instead of physically running each run.
+--
+declare
+v_i number;
+v_b number;
+v_r number;
+begin
+dw_utl.log_app ('DW_TG_MAN_RUN', ' Started' , 'I');
+for tg in (
+          select a.*
+          --,is_runnable,max_file_load_concurrency
+          from dw_tasks a join dw_task_exec_steps b on a.dw_task_id=b.dw_task_id
+          where a.task like '%TG%' and b.template_name like '%STD_GROUP_TASK'
+    ) loop
+    dw_utl.log_app ('DW_TG_MAN_RUN', ' Started: '||tg.task , 'I');
+    v_i:=0;
+    for rn in (
+            select rr.dw_task_id,rr.dw_run_id,rr.dw_batch_id,rr.run_status
+            from dw_rt_runs rr join dw_rt_batches b on rr.dw_batch_id=b.dw_batch_id
+                  where run_status='RUNABLE' and b.load_status <> 'BATCHED'
+            and rr.dw_task_id= tg.dw_task_id
+        ) loop
+        v_i:=v_i+1;
+        update dw_rt_batches set dw_task_id=rn.dw_task_id
+                 /*,load_status='LOADED' */ /* it must remain whatever it is so that the TG does not RE-AUDIT it */
+                 where dw_batch_id=rn.dw_batch_id
+        and SUPER_BATCH_IND in('C','N')
+        ;
+        v_b:=SQL%ROWCOUNT;
+        update dw_rt_runs set run_status='CLOSED', end_date=sysdate
+        where dw_run_id=rn.dw_run_id
+        ;
+        v_r:=SQL%ROWCOUNT;
+        commit;
+        dw_utl.log_app ('DW_TG_MAN_RUN', ' Updated  B:'||v_b||' R:'||v_r , 'I',
+                         pi_dw_batch_id=>rn.dw_batch_id, pi_dw_task_id=>rn.dw_task_id,pi_dw_run_id=>rn.dw_run_id);
+    end loop;
+    dw_utl.log_app ('DW_TG_MAN_RUN', ' Ended: '||tg.task ||' '||v_i||' updates.', 'I');
+end loop;
+
+dw_utl.log_app ('DW_TG_MAN_RUN', 'Ended' , 'I');
+end;

@@ -1,0 +1,288 @@
+--FORCE SUPER BATCHING:
+BEGIN
+DW_BIB_UTL.TG_FORCE_SUPER_BATCH;
+END;
+/
+-- SWITCH FORCED SUPER BATCHING OFF:
+--(Preferably +-half an hour after you have done TG_FORCE_SUPER_BATCH)
+
+BEGIN
+DW_BIB_UTL.TG_FORCE_SUPER_BATCH_OFF;
+END;
+/
+
+ALTER SYSTEM KILL SESSION '1648,48729, @1';
+
+select dw_batch_id, short_filename, substr(short_filename, 35,10) Node, row_count, base_row_count, bad_row_count, register_datetime, processing_status
+from dw_rt_files
+where short_filename like '%20161017%SDP_DUMP%' and short_filename like '%SDP_DUMP_MA%' and PROCESSING_STATUS  not like  '%DUP%'-- like '%ASSDP8%' or substr(short_filename, 35,10)  like '%ASSDP6'
+order by 3 desc;
+
+
+--------SETUP A TASK AND RUN IT:------------
+
+BEGIN
+DW_BIB_UTL.SETUP_AND_RUN_MANY('STD_TE_S2E_FCT_NETWORK_CELL_STATS');
+END;
+/
+
+--A business area:
+BEGIN
+DW_BIB_UTL.SETUP_AND_RUN_ONE(p_task_businness_area=>'STD_TE_S2S_SUBS_CLASSIFICATION');
+END;
+/
+--SETUP MANY TASKS AND F:
+BEGIN
+DW_BIB_UTL.SETUP_AND_RUN_MANY('TR_S2S_ABLT');
+end;
+/
+
+BEGIN
+DW_BIB_UTL.SETUP_AND_RUN_ONE('STD_ABILITY_RELATIONAL_S2S_EXTRACT_SETUP');
+END;
+/
+
+------------------------------------------- RUN MANY  TASK:---------------------
+--specific task:
+
+BEGIN 
+--FOR I IN (SELECT * FROM DW_RT_RUNS WHERE TASK LIKE '%STD_C2C_FCT_CDR_RATED_COMB%' AND RUN_STATUS = 'RUNABLE')
+--LOOP
+DW_BIB_SCHED.RUN_MANY(pi_task_LIKE =>'%TF_S2S_XDR_SV_ZA%');
+dw_bib_utl.RELEASE_SESSION_USER_LOCKS;
+--END LOOP;
+
+END;
+/
+    
+    
+    
+    
+    
+BEGIN 
+dw_exec_task_setup(v_itask=>'TD_S2S_ABLT',pi_days_back=>100);
+  dw_bib_utl.RELEASE_SESSION_USER_LOCKS;
+END;
+/
+
+--------------------------------- BUSINESS AREA
+BEGIN
+DW_BIB_UTL.RUN_MANY('STD_C2E_FCT_PREPAID_SNAPD');
+END;
+/
+---------RESET FAILED RUNS:-----------
+--Reset ALL the runs with a failed status:
+
+--Reset tasks where task like:
+BEGIN
+DW_BIB_UTL.RESET_FAILED_RUNS('%TF_S2S_XDR_SV_ZA%');
+dw_bib_utl.RELEASE_SESSION_USER_LOCKS;
+END;
+/
+
+
+
+--Reset only one failed task:
+BEGIN
+DW_BIB_UTL.RESET_FAILED_RUNS('STD_TE_S2C_FCT_CDR_UNRATED_GGSN_INT');
+  dw_bib_utl.RELEASE_SESSION_USER_LOCKS;
+END;
+/
+--Reset tasks where task not like:
+
+---------------DELETE TASK 
+BEGIN
+P_DELETE_TASK('STD_C2C_FCT_MSISDN_BASE_STATION_SUMD'); 
+  dw_bib_utl.RELEASE_SESSION_USER_LOCKS;
+END;
+/
+
+
+---------
+
+
+
+BEGIN
+DW_BIB_UTL.RESET_FAILED_RUNS(v_task_not_like=>'%TASK_NAM E_NOT_LIKE%');
+END;
+/
+--Click to go back to index-- --Click to go to the package spec--
+--------- RESET AUDIT FAILED BATCHES:----------------
+--For a specific batch id:
+BEGIN
+DW_BIB_UTL.RESET_AUDIT_FAILED(THE_BATCH_ID);
+END;
+/
+--For a specific task:
+BEGIN
+DW_BIB_UTL.RESET_AUDIT_FAILED(p_task_like=>'%STD_TE_S2C_FCT_CDR%');
+  dw_bib_utl.RELEASE_SESSION_USER_LOCKS;
+END;
+/
+--Reset ALL the audit failed batches:
+BEGIN
+DW_BIB_UTL.RESET_AUDIT_FAILED(p_task_like=>'%');
+  dw_bib_utl.RELEASE_SESSION_USER_LOCKS;
+END;
+/
+--------- DROP A BIB META JOB:---------------
+BEGIN
+DW_BIB_UTL.DROP_META_JOB('JOB_NAME');
+END;
+/
+--------- DROP A BIB CTL JOB:------------------
+BEGIN
+DW_BIB_UTL.DROP_CTL_JOB('JOB_NAME');
+  dw_bib_utl.RELEASE_SESSION_USER_LOCKS;
+END;
+/
+-------- MERGE STAGE MASTER TABLES:--------------
+BEGIN
+DW_BIB_UTL.MERGE_STG_MASTER(LIMIT_NR_PARTITIONS_TO_MERGE);
+END;
+/
+--Click to go back to index-- --Click to go to the package spec--
+Example:
+--Click to go back to index-- --Click to go to the package spec--
+BEGIN
+DW_BIB_UTL.MERGE_STG_MASTER(1);
+END;
+/
+----------- RESET RUNS NOT RUNNING:--------------
+--This will reset runs that are RUNNING in dw_rt_runs, but have no session in gv%session. By default it will only target runs that has been running for 2 hours or longer.
+--Goes and check for ANY runs that have no more session and reset them:
+
+
+BEGIN
+BIB_CTL.DW_BIB_UTL.RESET_RUNS_NOT_RUNNING();
+DW_BIB_UTL.RELEASE_SESSION_USER_LOCKS;
+END;
+/
+
+
+--Check and reset for a specific task:
+
+BEGIN
+BIB_CTL.DW_BIB_UTL.RESET_RUNS_NOT_RUNNING('STD_C2E_FCT_SUBSCRIBER_SNAPD');
+dw_bib_utl.RELEASE_SESSION_USER_LOCKS;
+END;
+/
+
+
+CS5_TE_S2C_FCT_CDR_PREPAID_RATED_DED_CCN_VOICE_DA
+CS5_TE_S2C_FCT_CDR_PREPAID_RATED_DED_CCN_VOICE_DA
+CS5_TE_S2C_FCT_CDR_PREPAID_RATED_CCN_GPRS_MA
+
+-- RESET TASKS WITH DIY PARAMETERS (MOSTLY SUMMARIES):
+
+
+
+BEGIN
+BIB_CTL.DW_BIB_UTL.DIY_RESET('STD_TE_S2S_INT_SUBSCRIBER','20170208');
+END;
+
+/
+--Example you want to reset task STD_C2C_FCT_MSISDN_RATED_SUMD for 20130703.
+
+BEGIN
+dw_exec_task_setup(v_itask=>'STD_TE_S2E_FCT_NETWORK_CELL_STATS',pi_days_back=>100);
+END;
+/
+-- REBUILD INDEXED SUB PARTITIONS:
+BEGIN
+BIB_CTL.DW_BIB_UTL.REBUILD_INDEX_SUBPART('STG_GEN','%ABLT_CB_ACCOUNT_RECEIVE_PAY%');
+END;
+/
+--Example below will rebuild all indexes where owner = STG_GEN, till it hits the limit.
+BEGIN
+BIB_CTL.DW_BIB_UTL.REBUILD_INDEX_SUBPART('STG_GEN',50); --Default is 50.
+END;
+/
+
+--Example below will rebuild a specific index using table name:
+BEGIN
+BIB_CTL.DW_BIB_UTL.REBUILD_INDEX_SUBPART(v_owner=>'BIB',v_name_like=>'%FCT_IT_PERFORMANCE_MEASUREMENT%');
+END;
+/
+
+
+-- REBUILD INDEXED PARTITIONS:
+BEGIN
+BIB_CTL.DW_BIB_UTL.REBUILD_INDEX_PART('INDEX_OWNER_NAME',LIMIT_OF_INDEXES,'%TABLE_NAME%');
+END;
+/
+--Example below will rebuild all indexes where owner = STG_GEN, till it hits the limit.
+BEGIN
+BIB_CTL.DW_BIB_UTL.REBUILD_INDEX_PART('STG_GEN',10); --Default is 50.
+END;
+/
+Example below will rebuild a specific index using table name:
+BEGIN
+BIB_CTL.DW_BIB_UTL.REBUILD_INDEX_PART(v_owner=>'STG_GEN',v_name_like=>'%PREPAID%');
+END;
+/
+-- REBUILD INDEX:
+BEGIN
+BIB_CTL.DW_BIB_UTL.REBUILD_INDEX('INDEX_OWNER_NAME',LIMIT_OF_INDEXES,'%TABLE_NAME%');
+END;
+/
+--Example below will rebuild all indexes where owner = STG_GEN, till it hits the limit.
+BEGIN
+BIB_CTL.DW_BIB_UTL.REBUILD_INDEX('STG_GEN',10); --Default is 50.
+END;
+/
+--Example below will rebuild a specific index using table name:
+BEGIN
+BIB_CTL.DW_BIB_UTL.REBUILD_INDEX(v_owner=>'STG_GEN',v_name_like=>'%PREPAID%');
+END;
+/
+
+-- RELEASE USER LOCKS FOR YOUR SESSION:
+BEGIN
+BIB_CTL.DW_BIB_UTL.RELEASE_SESSION_USER_LOCKS();
+END;
+/
+--That will release all user locks for your session.
+-- CREATE A DUMMY BATCH. (NO ABLT FOR THE DAY)
+--This can be used when you have missed an ABLT snap for the day, you can simply call this API and it will generate a dummy batch for your current process date. There is a check for if you call it more than once for the same process date, so duplicating data for the same process date is not possible.
+
+BEGIN
+BIB_CTL.DW_BIB_UTL. DUMMY_BATCH_CREATION();
+END;
+/
+-- RULE_OVERRIDE
+--This can be used to override a RULE if the OPS CONSOLE is not available for some reason.
+--Parameter to be passed: The rule name.
+BEGIN
+BIB_CTL.DW_BIB_UTL. RULE_OVERRIDE('THE_RULE_NAME');
+END;
+/
+--Example:
+Date: 20140309: SUBS EVENT cnt (0) is 0! Can use RULE_FCT_SUBS_EVENT_USAGE_DATE_OVERRIDE.
+BEGIN
+BIB_CTL.DW_BIB_UTL. RULE_OVERRIDE('RULE_FCT_SUBS_EVENT_USAGE_DATE_OVERRIDE');
+END;
+/
+
+update DW_ENVIRONMENT_VARIABLES
+set VARIABLE_VALUE = 'N'
+where VARIABLE_NAME  like 'GLOBAL_ETL_SWITCH';
+commit;
+
+
+-----LOGGING LEVEL
+begin
+dw_utl.enable_trace_task(pi_dw_task_id => dw_get_task_id ('STD_C2C_FCT_IMSI_USAGE_PREPAID_LAST'), pi_tracelifetime => 1); 
+dw_utl.enable_trace_run(pi_dw_run_id => dw_get_task_id ('STD_C2C_FCT_IMSI_USAGE_PREPAID_LAST'));
+dw_bib_utl.RELEASE_SESSION_USER_LOCKS;
+
+end;
+/
+-----01082016
+----STD_C2C_FCT_IMSI_USAGE_PREPAID_LAST NEED TO CHANGE BACK 
+----STD_C2C_FCT_CDR_RATED_SUMD
+
+select * from bib_supp.INT_SUBSCRIBER_BATCH;
+
+SELECT * FROM  bib_supp.PREPAID_SUBSCRIBER_BASE_BATCH;
+delete from bib_supp.POSTPAID_SUBSCRIBER_BASE_BATCH;

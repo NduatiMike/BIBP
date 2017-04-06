@@ -1,0 +1,264 @@
+  update dw_tasks set max_key= 20170402 where  task='STD_DEP_HR_PROCESS_DATE';
+select task, max_key from dw_tasks where task = 'STD_DEP_HR_PROCESS_DATE';
+
+
+commit;
+/
+
+
+select distinct ''''||task||''''  from dw_rt_runs
+where task like '%HR%';
+
+select bb.task,bb.dw_task_id,aa.processing_status,sum(rows_loaded),max(aa.register_datetime) max_registered_date
+from dw_rt_files aa, dw_rt_runs bb
+where aa.dw_task_id = bb.dw_task_id and 
+aa.short_filename like '%NG_mtn_bib%'
+group by bb.task,bb.dw_task_id,aa.processing_status;
+
+select * from dw_rt_files --where short_filename --like 'NG_mtn_bib_bnfts_data_file_%.txt'
+where dw_batch_id = 193625;
+/
+select * from dw_rt_batches where dw_batch_id = 193625;
+
+
+BEGIN
+DW_FILE_TASK_REGISTER(pi_location=>'LOCATION:BIB_CTL', pi_task_like => 'STD_TF_S2S_HRIS_PERSONAL');
+END;
+/
+
+------------------- S2S Tasks ------------------------------------------------------------------
+select DW_RUN_ID,task,run_status,round((end_date - start_date)*24*60,2) run_time, start_date, 
+end_date,ROWS_LOADED,ROWS_ERROR, DW_BATCH_ID,DIY_PARAMETER,DIRECT_EXEC_SQL
+from dw_rt_runs
+where task in(
+--'STD_S2S_TE_HRIS_PREV',
+'STD_TF_S2S_HRIS_PERSONAL',
+'STD_TF_S2S_HRIS_BENEFITS',
+'STD_TF_S2S_HRIS_ADDRESS',
+'STD_TF_S2S_HRIS_ASSIGNMENT'
+)
+--and diy_parameter = 20151207
+--and run_status <>'RUNABLE'
+order by 5 desc;
+/
+
+
+select * from stg_gen.er_hris_benefits where batch_id = 220897;
+/
+select * from dw_rt_files where dw_batch_id = 66204;
+select * from dw_rt_files where short_filename LIKE 'NG_mtn_bib_pers_info_20151207.txt';
+select * from dw_rt_files WHERE MD5_CHECKSUM = 'c6b80592a1c4055952b0633e148c4b6c';
+
+
+select COUNT(*), TASK, RUN_STATUS from dw_rt_runs
+where task in(
+'STD_S2S_TE_HRIS_PREV',
+'STD_TF_S2S_HRIS_PERSONAL',
+'STD_TF_S2S_HRIS_BENEFITS',
+'STD_TF_S2S_HRIS_ADDRESS',
+'STD_TF_S2S_HRIS_ASSIGNMENT')
+GROUP BY  TASK, RUN_STATUS;
+/
+DECLARE
+v_r integer;
+v_i integer;
+BEGIN
+DW_FILE_TASK_LOAD('STD_TF_S2S_HRIS_PERSONAL',v_r, v_i);
+END;
+/
+----------------------------------------------------------
+select * from dw_rt_runs
+where task = 'STD_RULE_TD_S2S_HRIS'
+order by 5 desc;
+--STD_RULE_TD_S2S_HRIS
+--TD_S2S_HRIS
+/
+BEGIN
+DW_BIB_SCHED.SETUP_AND_RUN_ONE('STD_TE_S2E_FCT_HR_EMPLOYEE_SNAP');
+DW_BIB_SCHED.SETUP_AND_RUN_ONE('STD_TE_S2E_FCT_HR_EMPLOYEE_SNAP_REDO_EVENTS');
+
+END;
+/
+
+----------------- S2M Tasks -----------------------------------------------------------------
+select DW_RUN_ID,task,run_status,round((end_date - start_date)*24*60,2) run_time, start_date, 
+end_date,ROWS_LOADED,ROWS_ERROR, DW_BATCH_ID,DIY_PARAMETER,DIRECT_EXEC_SQL
+from dw_rt_runs
+where task in(
+'STD_TE_S2M_HRISM_PERSONAL',
+'STD_TE_S2M_HRISM_ADDRESS',
+'STD_TE_S2M_HRISM_ASSIGNMENT',
+'STD_TE_S2M_HRISM_BENEFITS'
+)
+--AND DIY_PARAMETER = '20170125'
+order by 5 desc
+--ORDER BY DIY_PARAMETER DESC NULLS LAST
+;
+------------------- S2C (Source to CDR store) -----------------------------------------------
+select DW_RUN_ID,task,run_status,round((end_date - start_date)*24*60,2) run_time, start_date, 
+end_date,ROWS_LOADED,ROWS_ERROR, DW_BATCH_ID,DIY_PARAMETER,DIRECT_EXEC_SQL
+from dw_rt_runs
+where task in(
+'STD_TE_S2C_HRIS_DEPEND'  ---RUNS AFTER STD_TE_S2M_HRISM_PERSONAL
+)
+order by 5 desc;
+----------------- DIM Tasks ------------------------------------------------------------------
+select DW_RUN_ID,task,run_status,round((end_date - start_date)*24*60,2) run_time, start_date, 
+end_date,ROWS_LOADED,ROWS_ERROR, DW_BATCH_ID,DIY_PARAMETER,DIRECT_EXEC_SQL
+from dw_rt_runs
+where task in(
+'STD_TE_S2E_DIM_HR_EVENT_TYPE',
+'STD_TE_S2E_DIM_HR_APPOINTMENT_TYPE',
+'STD_TE_S2E_DIM_HR_TERMINATION_TYPE',
+'STD_TE_S2E_DIM_HR_EMPLOYEE_TYPE',
+'STD_TE_S2E_DIM_HR_EMPLOYEE_LEVEL',
+'STD_TE_S2E_DIM_HR_JOB_POSITION',
+'STD_TE_S2E_DIM_ADDRESS_HR',
+'STD_TE_S2E_DIM_HR_LOCATION',
+'STD_TE_S2E_DIM_HR_QUALIFICATION',
+'STD_TE_S2E_DIM_EMPLOYEE',
+'STD_TE_S2E_DIM_HR_APPOINTMENT_TYPE_UMD'
+) 
+--and start_date like '%201605%'
+order by 5 desc;
+---------------------- FCT Tasks ----------------------------------------
+select  DW_RUN_ID,task,run_status,round((end_date - start_date)*24*60,2) run_time, start_date, 
+end_date,ROWS_LOADED,ROWS_ERROR, DW_BATCH_ID,DIY_PARAMETER,DIRECT_EXEC_SQL
+from dw_rt_runs
+where task in(
+'STD_TE_S2E_FCT_HR_EMPLOYEE_SNAP_REDO_EVENTS',
+'STD_TE_S2E_FCT_HR_EMPLOYEE_EVENT',
+'STD_TE_S2E_FCT_HR_EMPLOYEE_SNAP'
+)--MONTHLY
+order by 5 desc;
+/
+SELECT MAX(DATE_KEY) FROM BIB.FCT_HR_EMPLOYEE_EVENT;
+/
+/
+SELECT * FROM DW_TASKS WHERE TASK LIKE '%_HR%';
+
+
+------------------------------------------------------------------------
+
+select * from dw_rt_batches where dw_batch_id = 3176245	; 
+
+select * from STG_GEN.HRIS_ASSIGNMENT where batch_id = 3175958	; 
+
+select * from dw_rt_runs
+where dw_batch_id = 2118517;
+
+/
+
+update dw_rt_runs
+set run_status = 'RUNABLE'
+--set run_status = 'DELAYED'
+where task in (
+'STD_TE_S2M_HRISM_PERSONAL',
+'STD_TE_S2M_HRISM_ADDRESS',
+'STD_TE_S2M_HRISM_ASSIGNMENT',
+'STD_TE_S2M_HRISM_BENEFITS'
+)
+and run_status = 'DELAYED'
+--and run_status = 'CLOSED'
+--and run_status = 'RUNABLE'
+--
+--and diy_parameter >'20160525'
+--
+and diy_parameter in ('20160531')
+;
+commit;
+
+/
+--UPDATE DW_TASKS 
+--SET  MAX_FILE_ARCHIVE_CONCURRENCY = 1
+select task, MAX_FILE_ARCHIVE_CONCURRENCY
+FROM DW_TASKS 
+where task in (
+'STD_TF_S2S_HRIS_PERSONAL',
+'STD_TF_S2S_HRIS_BENEFITS',
+'STD_TF_S2S_HRIS_ADDRESS',
+'STD_TF_S2S_HRIS_ASSIGNMENT'
+);
+
+/
+BEGIN
+--BIB_CTL.DW_BIB_UTL.DIY_RESET('%STD_TE_S2E_FCT_HR_EMPLOYEE_SNAP%','20170114');
+--BIB_CTL.DW_BIB_UTL.DIY_RESET('%STD_TE_S2E_FCT_HR_EMPLOYEE_SNAP%','20170115');
+--BIB_CTL.DW_BIB_UTL.DIY_RESET('%STD_TE_S2E_FCT_HR_EMPLOYEE_SNAP%','201701');
+BIB_CTL.DW_BIB_UTL.DIY_RESET('%STD_TE_S2M_HRISM%','20170121');
+--BIB_CTL.DW_BIB_UTL.DIY_RESET('%STD_TE_S2M_HRISM%','20170113');
+--BIB_CTL.DW_BIB_UTL.DIY_RESET('%STD_TE_S2M_HRISM%','20170112');
+--BIB_CTL.DW_BIB_UTL.DIY_RESET('%STD_TE_S2M_HRISM%','20170111');
+END;
+/
+BEGIN
+FOR I IN 1..6 LOOP
+DW_BIB_UTL.RUN_MANY(pi_task_like=>'%STD_TE_S2M_HRISM%',pi_manually_scheduled=>'N');
+--DW_BIB_UTL.RUN_MANY(pi_task_like=>'%STD_TE_S2E_DIM_EMPLOYEE%',pi_manually_scheduled=>'N');
+dw_bib_utl.RELEASE_SESSION_USER_LOCKS;
+END LOOP;
+END;
+/
+
+SELECT TASK , TARGET_TABLE_NAME FROM DW_TASK_EXEC_STEPS   
+where task in (
+'STD_TE_S2M_HRISM_PERSONAL',
+'STD_TE_S2M_HRISM_ADDRESS',
+'STD_TE_S2M_HRISM_ASSIGNMENT',
+'STD_TE_S2M_HRISM_BENEFITS'
+)
+;
+
+/
+SELECT * FROM ALL_TAB_PARTITIONS WHERE TABLE_NAME = 'HRISM_ASSIGNMENT_NEW'
+--and partition_name like '%7985893%'
+ORDER BY PARTITION_POSITION DESC;
+
+/
+select * from dw_table_metadata where TABLE_NAME = 'HRISM_ADDRESS';
+/
+exec DW_PARTITION.FIX_PARTITION_NAMES ('STG_GEN','HRISM_ASSIGNMENT_NEW');
+/
+alter table STG_GEN.HRISM_ADDRESS move partition SYS_P8561748 tablespace TS_STG_GEN_M_3M_201608;
+/
+select * from dba_tables
+/
+rename HRISM_ASSIGNMENT_NEW to HRISM_ASSIGNMENT;
+/
+--select 'ALTER TABLE STG_GEN.'|| TABLE_NAME||' MOVE PARTITION ' || PARTITION_NAME ||' TABLESPACE ' || ACTUAL_TABLESPACE ||' PARALLEL 10;' from(
+select d.DATE_KEY,DW_DATE_KEY,d.table_owner,d.table_name,d.PARTITION_NAME,d.TABLESPACE_NAME,substr(f.TABLESPACE_VARIABLE,1,length(f.TABLESPACE_VARIABLE)-8)||substr(d.DATE_KEY,1,6) as actual_tablespace
+from DW_TABLE_METADATA f ,(
+select BIB_CTL.DW_UTL_REMOTE.DW_DATE_KEY (CREATE_DATETIME) DATE_KEY,DW_DATE_KEY,a.DW_BATCH_ID,b.table_owner as table_owner,b.table_name as table_name,b.PARTITION_NAME,b.TABLESPACE_NAME from dw_rt_batches a 
+join all_tab_partitions b on to_char(a.dw_batch_id) = to_char(substr(b.PARTITION_NAME,3,9))
+where PARTITION_NAME not like 'SYS_P%'
+and b.tablespace_name like 'TS_STG_GEN' )d 
+where d.table_name = f.table_name
+--)
+;
+/
+STD_TE_S2M_HRISM_ADDRESS	${SGEN}HRISM_ADDRESS --done
+STD_TE_S2M_HRISM_ASSIGNMENT	${SGEN}HRISM_ASSIGNMENT --done
+STD_TE_S2M_HRISM_BENEFITS	${SGEN}HRISM_BENEFITS --BUSY
+STD_TE_S2M_HRISM_PERSONAL	${SGEN}HRISM_PERSONAL  --DONE
+
+
+/
+SELECT * FROM STG_GEN.HRISM_ASSIGNMENT_NEW;
+/
+select * from dw_rt_batches where dw_batch_id = 7985893;
+/
+DECLARE
+
+DIY_PARAMETER VARCHAR2(10) := TO_CHAR(SYSDATE,'YYYYMMDD') ;
+BEGIN
+
+UPDATE dw_tasks
+  SET max_key= dw_utl_remote.dw_date_key(sysdate-1)
+  WHERE task ='STD_DEP_HR_PROCESS_DATE' ;
+  COMMIT;
+
+BIB_CTL.DW_BIB_UTL.DIY_RESET('STD_TE_S2M_HRISM%',DIY_PARAMETER);
+BIB_CTL.DW_BIB_UTL.RELEASE_SESSION_USER_LOCKS;
+END;
+
+/

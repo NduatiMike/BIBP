@@ -1,0 +1,394 @@
+------------------PROCESS_DATE----------------PROCESS_DATE-------------------PROCESS_DATE----------
+select max_key from dw_tasks where task = 'STD_DEP_IT_PROCESS_DATE';
+
+update dw_tasks set max_key= 20170324 where  task='STD_DEP_IT_PROCESS_DATE';
+
+----------------------------EXTRACT_SETUP-----------------------EXTRACT_SETUP----------------------
+Select task, run_status, A.dw_batch_id, dw_max_date_key , start_date, end_date from dw_rt_runs a, dw_rt_batches b  where a.dw_batch_id = b.dw_batch_id and  task =
+'STD_SCOM_RELATIONAL_S2S_EXTRACT_SETUP'order by start_date desc;
+/
+Select task, run_status, A.dw_batch_id, dw_max_date_key , start_date, end_date from dw_rt_runs a, dw_rt_batches b  where a.dw_batch_id = b.dw_batch_id and  task =
+'TD_S2S_REM'
+--order by start_date desc
+order by 4 desc
+;
+/
+BEGIN
+BIB_CTL.DW_EXEC_TASK_AUDIT('STD_SCOM_RELATIONAL_S2S_EXTRACT_SETUP'); --STD_REM_RELATIONAL_S2S_EXTRACT_SETUP
+BIB_CTL.DW_EXEC_TASK_AUDIT('STD_REM_RELATIONAL_S2S_EXTRACT_SETUP'); --
+
+END;
+/
+begin
+-- dw_exec_task_setup('STD_SCOM_RELATIONAL_S2S_EXTRACT_SETUP');
+  dw_exec_task_setup('STD_REM_RELATIONAL_S2S_EXTRACT_SETUP');
+end;
+/
+begin
+ dw_exec_task_setup('STD_SCOM_RELATIONAL_S2S_EXTRACT_CONTROL');
+end;
+/
+select * from dw_rt_runs where  task = 'STD_SCOM_RELATIONAL_S2S_EXTRACT_SETUP' order by 5 desc;
+
+-------------------------S2S-------------------------S2S--------------------------S2S----------------
+
+Select RUN_STATUS,A.* from dw_rt_runs A where task in (
+'STD_TE_S2S_REM_CFG_ASSIGNSUPGRPFUNCRLE',
+'STD_TE_S2S_REM_CFG_SERVICE_CATALOG',
+'STD_TE_S2S_REM_CHG_INFRASTUCTURE_CHG',
+'STD_TE_S2S_REM_CTM_PEOPLE',
+'STD_TE_S2S_REM_CTM_PEOPLE_ORGANISATION',
+'STD_TE_S2S_REM_CTM_SUPPORTGROUPFUNCTIONALROLE',
+'STD_TE_S2S_REM_CTM_SUPPORT_GROUP',
+'STD_TE_S2S_REM_HPD_HELP_DESK',
+'STD_TE_S2S_REM_PCT_PRODUCT_CATALOG',
+'STD_TE_S2S_REM_SIT_SITE',
+'STD_TE_S2S_REM_SIT_SITE_GROUP',
+'STD_TE_S2S_REM_SLM_CONFIGGOALTYPE',
+'STD_TE_S2S_REM_SLM_MEASUREMENT',
+'STD_TE_S2S_REM_SLM_SERVICETARGET',
+'STD_TE_S2S_REM_SLM_STATUS',
+'STD_TE_S2S_REM_SRM_REQUEST',
+'STD_TE_S2S_REM_SYS_REQUEST_TYPE',
+'STD_TE_S2S_REM_SYS_STATUS_MENITMS',
+'STD_TE_S2S_REM_WOI_WORKORDER',
+'STD_TE_S2S_SCOM_BASEMANAGEDENTITY',
+'STD_TE_S2S_SCOM_MANAGEDENTITYGENERICVIEW',
+'STD_TE_S2S_SCOM_MANAGEDTYPE',
+'STD_TE_S2S_SCOM_MANAGEDTYPEVIEW',
+'STD_TE_S2S_SCOM_MANAGEMENTPACK',
+'STD_TE_S2S_SCOM_MONITOR',
+'STD_TE_S2S_SCOM_MONITOROPERATIONALSTATE',
+'STD_TE_S2S_SCOM_PERFORMANCECOUNTER',
+'STD_TE_S2S_SCOM_PERFORMANCEDATAALLVIEW',
+'STD_TE_S2S_SCOM_PERFORMANCESOURCE',
+'STD_TE_S2S_SCOM_RULES',
+'STD_TE_S2S_SCOM_STATE',
+'STD_TE_S2S_SCOM_STATECHANGEEVENT'
+) 
+--AND RUN_STATUS NOT IN ('CLOSED','SUCCESS','ONHOLDVT')
+--AND START_DATE LIKE '%201612%'
+--and dw_batch_id = 1643118
+order by 6 desc;
+
+-------------------------TR-------------------------TR--------------------------TR----------------
+SELECT * FROM GV$SESSION WHERE MODULE LIKE '%STD_TE_S2S_IFS_ACCOUNTING_BALANCE_AUTH%';
+
+
+Select RUN_STATUS, A.* from dw_rt_runs A where task =
+--'TR_S2S_REM'
+'TR_S2S_SCOM' 
+
+--AND DW_RUN_ID = 6009947
+order by 6 desc;
+
+--------------------RULE TASK----------------RULE TASK-------------------RULE TASK----------------
+
+Select * from dw_rt_runs where task =
+'STD_RULE_TD_S2S_REM'order by 5 desc;
+
+BEGIN
+DW_BIB_SCHED.SETUP_AND_RUN_ONE('STD_RULE_TD_S2S_REM');
+END;
+-------------------------TD-------------------------TD--------------------------TD----------------
+/
+Select RUN_STATUS,A.* from dw_rt_runs A where task in (
+--'TD_S2S_SCOM'
+'TD_S2S_REM'
+)
+--and start_date like '201604%' 
+order by 6 desc;
+
+BEGIN
+DW_BIB_UTL.SETUP_AND_RUN_ONE('TD_S2S_REM');
+DW_BIB_UTL.SETUP_AND_RUN_ONE('TD_S2S_SCOM');
+
+END;
+
+-------------------------IFSM---------------------IFSM------------------------IFSM-----------------
+/
+Select RUN_STATUS,A.* from dw_rt_runs A where task in
+( 
+'STD_TE_S2M_REMM_CFG_ASSIGNSUPGRPFUNCRLE',
+'STD_TE_S2M_REMM_CFG_SERVICE_CATALOG',
+'STD_TE_S2M_REMM_CHG_INFRASTUCTURE_CHG',
+'STD_TE_S2M_REMM_CTM_PEOPLE',
+'STD_TE_S2M_REMM_CTM_PEOPLE_ORGANISATION',
+'STD_TE_S2M_REMM_CTM_SUPPORTGRPFUNCTALROLE',
+'STD_TE_S2M_REMM_CTM_SUPPORT_GROUP',
+'STD_TE_S2M_REMM_HPD_HELP_DESK',
+'STD_TE_S2M_REMM_PCT_PRODUCT_CATALOG',
+'STD_TE_S2M_REMM_SIT_SITE',
+'STD_TE_S2M_REMM_SIT_SITE_GROUP',
+'STD_TE_S2M_REMM_SLM_CONFIGGOALTYPE',
+'STD_TE_S2M_REMM_SLM_MEASUREMENT',
+'STD_TE_S2M_REMM_SLM_SERVICETARGET',
+'STD_TE_S2M_REMM_SLM_STATUS',
+'STD_TE_S2M_REMM_SRM_REQUEST',
+'STD_TE_S2M_REMM_SYS_REQUEST_TYPE',
+'STD_TE_S2M_REMM_SYS_STATUS_MENITMS',
+'STD_TE_S2M_REMM_WOI_WORKORDER',
+'STD_TE_S2M_SCOMM_BASEMANAGEDENTITY',
+'STD_TE_S2M_SCOMM_MANAGEDENTITYGENERICVIEW',
+'STD_TE_S2M_SCOMM_MANAGEDTYPE',
+'STD_TE_S2M_SCOMM_MANAGEDTYPEVIEW',
+'STD_TE_S2M_SCOMM_MANAGEMENTPACK',
+'STD_TE_S2M_SCOMM_MONITOR',
+'STD_TE_S2M_SCOMM_MONITOROPERATIONALSTATE',
+'STD_TE_S2M_SCOMM_PERFORMANCECOUNTER',
+'STD_TE_S2M_SCOMM_PERFORMANCEDATAALLVIEW',
+'STD_TE_S2M_SCOMM_PERFORMANCESOURCE',
+'STD_TE_S2M_SCOMM_RULES',
+'STD_TE_S2M_SCOMM_STATE',
+'STD_TE_S2M_SCOMM_STATECHANGEEVENT'
+) 
+--AND RUN_STATUS NOT IN ('CLOSED','SUCCESS','CANCELLED')
+order by 6 desc;
+
+/
+--------------FINANCE DIMESIONS------------FINANCE DIMESIONS--------------FINANCE DIMESIONS------------
+
+Select RUN_STATUS,A.* from dw_rt_runs A where task in(
+'STD_TE_S2E_DIM_ADDRESS_IT',
+'STD_TE_S2E_DIM_IT_COMPONENT',
+'STD_TE_S2E_DIM_IT_FUNCTIONAL_ROLE',
+'STD_TE_S2E_DIM_IT_MONITOR_RULE',
+'STD_TE_S2E_DIM_IT_MONITOR_TYPE',
+'STD_TE_S2E_DIM_IT_ORG_UNIT',
+'STD_TE_S2E_DIM_IT_PERFORMANCE_COUNTER',
+'STD_TE_S2E_DIM_IT_PERSON',
+'STD_TE_S2E_DIM_IT_SERVICE_CATALOG',
+'STD_TE_S2E_DIM_IT_SERVICE_LEVEL_TARGET',
+'STD_TE_S2E_DIM_IT_SITE',
+'STD_TE_S2E_DIM_IT_SLM_STATUS',
+'STD_TE_S2E_DIM_IT_SL_GOAL_TYPE',
+'STD_TE_S2E_DIM_IT_STATE',
+'STD_TE_S2E_DIM_IT_SUPPORTED_PRODUCT',
+'STD_TE_S2E_DIM_IT_SUPPORT_GROUP',
+'STD_TE_S2E_DIM_IT_TICKET_STATUS_REASON',
+'STD_TE_S2E_DIM_IT_TICKET_TYPE',
+'STD_DIM_IT_PROJECT',
+'STD_DIM_IT_PROJECT_STATUS'
+) 
+--AND RUN_STATUS NOT IN ('CLOSED','SUCCESS','ONHOLDVT','CANCELLED')
+
+order by 5 desc;
+
+
+--------------IT FACTS--------------IT FACTS--------------IT FACTS----------------
+/
+SELECT DW_RUN_ID,task,run_status,round((end_date - start_date)*24*60,2) run_time, start_date, 
+end_date,ROWS_LOADED, DW_BATCH_ID,DIY_PARAMETER,DIRECT_EXEC_SQL,'select * from dw_rt_log_app where dw_task_id='||a.dw_task_id||' and dw_batch_id='||A.dw_batch_id||'  and dw_run_id='||A.dw_run_id||' AND error_sysdate >= sysdate-0.1 and dw_inst_id='|| REPLACE(SUBSTR(TRIM(remark),-2),';','')||' order by 1 desc' get_run_detail_logs
+FROM DW_RT_RUNS A WHERE TASK in (
+'STD_TE_S2E_FCT_IT_PERFORMANCE_MEASUREMENT',
+'STD_TE_S2E_FCT_IT_PROJECT_EVENT',
+'STD_TE_S2E_FCT_IT_STATE_EVENT',
+'STD_TE_S2E_FCT_IT_TICKET',
+'STD_TE_E2E_FCT_IT_STATE_SUMD',
+'STD_TE_FCT_IT_PROJECT_SNAPM'
+
+) 
+--AND RUN_STATUS NOT IN ('CLOSED','SUCCESS','ONHOLDVT','CANCELLED')
+--order by diy_parameter desc nulls last;
+order by START_DATE desc nulls last;
+
+/
+
+
+-----OPCO SPECIFIC SOURCE LOADER----------
+
+Select A.DIY_PARAMETER,RUN_STATUS,A.* from dw_rt_runs A where task in (
+'TE_S2S_IFSCONNECT_DAY_TRANS_DETAIL'
+--'TE_S2S_IFS_DAY_TRANS'
+--'TE_S2S_IFSCONNECT_DAY_TRANS_PAY_ANALYSIS',
+--'TE_S2S_IFSCONNECT_INVENTORY_TRANSACTION_HIST'
+)
+ORDER BY A.DIY_PARAMETER DESC;
+/
+BEGIN
+DW_BIB_UTL.SETUP_AND_RUN_ONE('TD_S2S_SCOM');
+
+
+END;
+/
+-----------
+
+UPDATE BIB.DIM_FIN_FINANCIAL_PERIOD
+SET PERIOD_UNTIL_DT='20160229 00:00:00'
+WHERE FINANCIAL_PERIOD_DESCR_TXT='FEBRUARY 2016';
+COMMIT;
+/
+SELECT 
+BIB_CTL.PKG_FIN_FINANCIAL_PERIOD.LKU (v_FINANCIAL_PERIOD_NO => 0, v_COMPANY_CD => '01', v_FINANCIAL_YEAR_NO => 2016, v_force_source => 'STD_TE_S2E_FCT_FIN_GL_ACCOUNT_ACTUAL') FINANCIAL_PERIOD_KEY
+FROM DUAL;
+/
+select PERIOD_UNTIL_DT, a.* FROM BIB.DIM_FIN_FINANCIAL_PERIOD a
+WHERE FINANCIAL_YEAR_NO='2016'
+ORDER BY FINANCIAL_PERIOD_NR;
+COMMIT;
+
+BEGIN
+DW_BIB_UTL.RUN_MANY('TR_S2S_IFS'); -- STD_S2E_FCT_SALE
+END;
+/
+BEGIN
+FOR I IN 1..6 LOOP
+DW_BIB_UTL.RUN_MANY(pi_task_like=>'%TD_S2S_REM%',pi_manually_scheduled=>'N');
+--DW_BIB_UTL.RUN_MANY(pi_task_like=>'%STD_TE_S2E_DIM_EMPLOYEE%',pi_manually_scheduled=>'N');
+dw_bib_utl.RELEASE_SESSION_USER_LOCKS;
+END LOOP;
+END;
+/
+select * from dw_tasks where task like '%SDP_DUMP_FAF%';
+
+/
+SELECT * FROM GV$SESSION WHERE MODULE LIKE 'STD_TE_S2S_IFS_BUDGET_PERIOD_AMOUNT%';
+
+/
+select variable_value, a.* from DW_ENVIRONMENT_VARIABLES a WHERE VARIABLE_NAME LIKE '%GLOBAL_ETL_SWITCH%'; 
+
+/
+UPDATE DW_TASKS 
+SET FLEX1 = 1
+WHERE TASK  IN (
+'STD_RULE_TD_S2S_IFS',
+'TD_S2S_IFS',
+'TR_S2S_IFS'
+);
+
+SELECT TASK, FLEX1
+FROM DW_TASKS WHERE TASK IN (
+'STD_TE_S2E_FCT_FIN_GL_ACCOUNT_ACTUAL',
+'TD_S2S_IFS',
+'TR_S2S_IFS'
+);
+
+/
+select * from dw_task_data_depend
+where DEPENDENT_TASK = 'STD_C2E_FCT_VASDP_TRANSACTION_SUMD';
+/
+SELECT * FROM DW_TASKS WHERE TASK  = 'STD_TE_S2C_FCT_VASDP_TRANSACTIONS_SERVBASICINFO';
+
+/
+select * from dw_rt_runs where task in ( 
+select task  from dw_tasks where task_business_area like '%Informa%' and is_runnable = 'Yes'
+)
+order by 5 desc;
+
+/
+update dw_rt_runs set run_status  = 'RUNABLE'
+WHERE DW_BATCH_ID IN (
+3053485,
+3029530,
+3003738
+)
+--AND TASK = 'TD_S2S_SCOM'
+AND TASK = 'TD_S2S_REM'
+and run_status = 'HOLD_VT'
+;
+/
+update dw_rt_runs set run_status = 'HOLD_VT' where run_status = 'RUNABLE' 
+AND TASK  = 
+'TD_S2S_SCOM'
+--'TD_S2S_REM'
+and dw_batch_id in (
+3184522,
+3156525,
+3053486
+)
+;
+
+/
+---AUTO ADVANCE-----
+declare
+  nCnt number; 
+  pd varchar2(10);
+begin
+  select max_key into pd  from bib_meta.dw_tasks where task = 'STD_DEP_IT_PROCESS_DATE';
+  
+  select sum(rows_loaded) into nCnt from bib_meta.dw_rt_runs 
+  where task in (select task from bib_meta.dw_tasks where task_business_area = 'Information Systems' and task in ('STD_TE_E2E_FCT_IT_STATE_SUMD', 'STD_TE_S2E_FCT_IT_TICKET'))
+  and diy_parameter = pd;
+  
+  if nCnt >= 1 and pd < to_char(sysdate-1,'YYYYMMDD') then
+  
+    update bib_meta.dw_tasks set max_key = to_number(to_char(to_date(max_key,'yyyymmdd')+1, 'yyyymmdd')) where task = 'STD_DEP_IT_PROCESS_DATE';
+    commit;
+    
+    dw_utl.log_app('IT Auto-Advancement','STD_DEP_IT_PROCESS_DATE process date advanced to ' || to_number(to_char(to_date(pd,'yyyymmdd')+1, 'yyyymmdd')) || '.','I');
+    
+    begin
+      BIB_CTL.dw_bib_utl.SETUP_AND_RUN_ONE('STD_REM_RELATIONAL_S2S_EXTRACT_SETUP');
+      BIB_CTL.dw_bib_utl.SETUP_AND_RUN_ONE('STD_SCOM_RELATIONAL_S2S_EXTRACT_SETUP');
+      BIB_CTL.dw_bib_utl.RELEASE_SESSION_USER_LOCKS;
+    end;
+    
+    begin
+      BIB_CTL.dw_bib_utl.SETUP_AND_RUN_ONE('STD_REM_RELATIONAL_S2S_EXTRACT_CONTROL');
+      BIB_CTL.dw_bib_utl.SETUP_AND_RUN_ONE('STD_SCOM_RELATIONAL_S2S_EXTRACT_CONTROL');
+      BIB_CTL.dw_bib_utl.RELEASE_SESSION_USER_LOCKS;
+    end;
+    
+    begin
+     BIB_CTL.DW_EXEC_TASK_SETUP_ALL(pi_location=>'LOCATION:BIB_CTL',
+     pi_parameter_type1=>'ALL',
+     pi_parameter_type2=>'ALL',
+     pi_task_business_area_like=>'Information%',
+     pi_task_like=>'%',
+     pi_days_back=>30);
+     BIB_CTL.dw_bib_utl.RELEASE_SESSION_USER_LOCKS; 
+    end;
+    
+    BEGIN
+    BIB_CTL.DW_EXEC_TASK_AUDIT('STD_REM_RELATIONAL_S2S_EXTRACT_SETUP');
+    BIB_CTL.DW_EXEC_TASK_AUDIT('STD_SCOM_RELATIONAL_S2S_EXTRACT_SETUP');
+   END;
+
+  elsif pd = to_char(sysdate-1,'YYYYMMDD') then
+    dw_utl.log_app('IT Auto-Advancement','Process Date is DAY-1.','I');
+
+  else
+    dw_utl.log_app('IT Auto-Advancement','Date NOT advanced due to previous days summaries STD_TE_E2E_FCT_IT_STATE_SUMD not loading any rows.','I');
+  end if;
+  
+end;
+
+
+
+
+
+select /*+ parallel(a,4)*/ 'IT Remedy Tickets stream is on ' || date_key || ' and is currently '  || 
+CASE WHEN to_number(to_char(TRUNC((SYSDATE-1) - TO_DATE(date_key,'YYYYMMDD'),0))) > 0 THEN  to_number(to_char(TRUNC((SYSDATE-1) - TO_DATE(date_key,'YYYYMMDD'),0))) ||' '||'DAY/S BEHIND.'
+WHEN date_key is null then 'NO DATA IN TABLE.'
+ELSE 'UP TO DATE.' END
+  as "PROCESS DATE"  from (
+select max(date_key) date_key from (
+select   max(c.dw_max_date_key) date_key from bib_meta.dw_rt_runs r
+left outer join bib_meta.dw_rt_batches b on (b.dw_batch_id = r.dw_batch_id ) 
+left outer join bib_meta.dw_rt_batches c on (b.dw_copied_batch_id = c.dw_batch_id )
+left outer join bib_meta.dw_rt_diy_list r on (r.dw_batch_id = c.dw_batch_id )
+where task = 'STD_TE_S2E_FCT_IT_TICKET' and run_status = 'CLOSED'));
+union
+select /*+ parallel(b,4)*/ 'IT SCOM State stream is on ' || date_key || ' and is currently '  || 
+CASE WHEN to_number(to_char(TRUNC((SYSDATE-1) - TO_DATE(date_key,'YYYYMMDD'),0))) > 0 THEN  to_number(to_char(TRUNC((SYSDATE-1) - TO_DATE(date_key,'YYYYMMDD'),0))) ||' '||'DAY/S BEHIND.'
+WHEN date_key is null then ' - NO DATA IN TABLE.'
+ELSE 'UP TO DATE.' END
+  as "PROCESS DATE"  from (
+select max(date_key) date_key from (
+select  max(substr(r.diy_parameter,0,8)) date_key from bib_meta.dw_rt_runs r
+left outer join bib_meta.dw_rt_batches b on (b.dw_batch_id = r.dw_batch_id ) 
+--left outer join bib_meta.dw_rt_batches c on (b.dw_copied_batch_id = c.dw_batch_id )
+--left outer join bib_meta.dw_rt_diy_list r on (r.dw_batch_id = c.dw_batch_id )
+where task = 'STD_TE_E2E_FCT_IT_STATE_SUMD' and run_status = 'CLOSED'))
+union
+select /*+ parallel(b,4)*/ 'IT SCOM Performance stream is on ' || date_key || ' and is currently '  || 
+CASE WHEN to_number(to_char(TRUNC((SYSDATE-1) - TO_DATE(date_key,'YYYYMMDD'),0))) > 0 THEN  to_number(to_char(TRUNC((SYSDATE-1) - TO_DATE(date_key,'YYYYMMDD'),0))) ||' '||'DAY/S BEHIND.'
+WHEN date_key is null then ' - NO DATA IN TABLE.'
+ELSE 'UP TO DATE.' END
+  as "PROCESS DATE"  from (
+select max(date_key) date_key from (
+select  max(c.dw_max_date_key) date_key from bib_meta.dw_rt_runs r
+left outer join bib_meta.dw_rt_batches b on (b.dw_batch_id = r.dw_batch_id ) 
+left outer join bib_meta.dw_rt_batches c on (b.dw_copied_batch_id = c.dw_batch_id )
+--left outer join bib_meta.dw_rt_diy_list r on (r.dw_batch_id = c.dw_batch_id )
+where task = 'STD_TE_S2E_FCT_IT_PERFORMANCE_MEASUREMENT' and run_status = 'CLOSED'));

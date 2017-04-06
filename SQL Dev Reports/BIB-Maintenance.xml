@@ -1,0 +1,582 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<displays>
+<display id="c82a70b6-0154-1000-8006-ac105c545e07" type="" style="Table" enable="true">
+	<name><![CDATA[BIB-Maintenance]]></name>
+	<description><![CDATA[]]></description>
+	<tooltip><![CDATA[]]></tooltip>
+	<drillclass><![CDATA[null]]></drillclass>
+	<CustomValues>
+		<TYPE>horizontal</TYPE>
+	</CustomValues>
+	<query>
+		<sql><![CDATA[select * from (
+select queue_name,op,
+segment_name,
+ sum(case when trim(status) in('ready','BUSY') then 1 else 0 end) todo
+,sum(case when status='BUSY' then 1 else 0 end) busy
+,sum(case when status='FAIL' then 1 else 0 end) failed
+,sum(case when (status like 'F%' or status='done') and status<>'FAIL' then 1 else 0 end) done
+,count(*) cnt
+--, min(case when status in('ready','BUSY') then p_date_val else null end) busy_min_d
+--, max(case when status in('BUSY') then object_name else null end) busy_max
+,trunc(sum(case when (status like 'F%' or status='done') and status<>'FAIL' then sizmb else 0 end)/1024,2) Gmv_siz
+,trunc(sum(case when status in ('BUSY','ready','FAIL')  then sizmb else 0 end)/1024) GRTomv_siz
+,trunc(sum(case when not ((status like 'F%' or status='done') and status<>'FAIL' ) then sizmb else 0 end)/1024) GTomv_siz
+,trunc(sum(sizmb)/1024) Gsiz
+,max(case when not ((status like 'F%' or status='Done') and status<>'FAIL' ) then gboffset else 0 end) mx_off -- includes hold
+,max(case when status in('ready','BUSY','FAIL') then gboffset else 0 end) mx_roff
+,max(case when  ((status like 'F%' or status='done') and status<>'FAIL' ) then gboffset else 0 end) mx_offdone
+, max(partition_name) pmax
+, min(partition_name) pmin
+from
+DW_BIB_MAINT_QUEUE  --02/03/10/17
+where trim(queue_name)='MAINT'
+group by queue_name,op,segment_name
+)
+order by busy desc, todo desc, segment_name]]></sql>
+	</query>
+		<pdf version="VERSION_1_7" compression="CONTENT">
+			<docproperty title="null" author="null" subject="null" keywords="null" />
+			<cell toppadding="2" bottompadding="2" leftpadding="2" rightpadding="2" horizontalalign="LEFT" verticalalign="TOP" wrap="true" />
+			<column>
+				<heading font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="FIRST_PAGE" />
+				<footing font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="NONE" />
+				<blob blob="NONE" zip="false" />
+			</column>
+			<table font="null" size="10" style="NORMAL" color="-16777216" userowshading="false" oddrowshading="-1" evenrowshading="-1" showborders="true" spacingbefore="12" spacingafter="12" horizontalalign="LEFT" />
+			<header enable="false" generatedate="false">
+				<data>
+				
+				
+				
+				
+				null																				</data>
+			</header>
+			<footer enable="false" generatedate="false">
+				<data value="null" />
+			</footer>
+			<security enable="false" useopenpassword="false" openpassword="null" encryption="EXCLUDE_METADATA">
+				<permission enable="false" permissionpassword="null" allowcopying="true" allowprinting="true" allowupdating="false" allowaccessdevices="false" />
+			</security>
+			<pagesetup papersize="LETTER" orientation="1" measurement="in" margintop="1.0" marginbottom="1.0" marginleft="1.0" marginright="1.0" />
+		</pdf>
+	<display id="null" type="" style="Table" enable="true">
+		<name><![CDATA[Busy]]></name>
+		<description><![CDATA[]]></description>
+		<tooltip><![CDATA[]]></tooltip>
+		<drillclass><![CDATA[null]]></drillclass>
+		<CustomValues>
+			<TYPE>horizontal</TYPE>
+		</CustomValues>
+		<query>
+			<sql><![CDATA[]]></sql>
+		</query>
+			<pdf version="VERSION_1_7" compression="CONTENT">
+				<docproperty title="null" author="null" subject="null" keywords="null" />
+				<cell toppadding="2" bottompadding="2" leftpadding="2" rightpadding="2" horizontalalign="LEFT" verticalalign="TOP" wrap="true" />
+				<column>
+					<heading font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="FIRST_PAGE" />
+					<footing font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="NONE" />
+					<blob blob="NONE" zip="false" />
+				</column>
+				<table font="null" size="10" style="NORMAL" color="-16777216" userowshading="false" oddrowshading="-1" evenrowshading="-1" showborders="true" spacingbefore="12" spacingafter="12" horizontalalign="LEFT" />
+				<header enable="false" generatedate="false">
+					<data>
+					
+					
+					
+					
+					null																									</data>
+				</header>
+				<footer enable="false" generatedate="false">
+					<data value="null" />
+				</footer>
+				<security enable="false" useopenpassword="false" openpassword="null" encryption="EXCLUDE_METADATA">
+					<permission enable="false" permissionpassword="null" allowcopying="true" allowprinting="true" allowupdating="false" allowaccessdevices="false" />
+				</security>
+				<pagesetup papersize="LETTER" orientation="1" measurement="in" margintop="1.0" marginbottom="1.0" marginleft="1.0" marginright="1.0" />
+			</pdf>
+	</display>
+	<display id="null" type="" style="Table" enable="true">
+		<name><![CDATA[SegSpace]]></name>
+		<description><![CDATA[]]></description>
+		<tooltip><![CDATA[]]></tooltip>
+		<drillclass><![CDATA[null]]></drillclass>
+		<CustomValues>
+			<TYPE>horizontal</TYPE>
+		</CustomValues>
+		<query>
+			<sql><![CDATA[select trunc(sum(bytes)/1024/1024/1024,2) GB, segment_name,tablespace_name, count(*), min(partition_name),max(partition_name), max(owner),min(owner)
+from dba_segments
+where segment_name = :SEGMENT_NAME
+and partition_name in (select subpartition_name from dw_bib_maint_queue where segment_name=:SEGMENT_NAME )
+group by segment_name,tablespace_name
+order by 1 desc]]></sql>
+		</query>
+			<pdf version="VERSION_1_7" compression="CONTENT">
+				<docproperty title="null" author="null" subject="null" keywords="null" />
+				<cell toppadding="2" bottompadding="2" leftpadding="2" rightpadding="2" horizontalalign="LEFT" verticalalign="TOP" wrap="true" />
+				<column>
+					<heading font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="FIRST_PAGE" />
+					<footing font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="NONE" />
+					<blob blob="NONE" zip="false" />
+				</column>
+				<table font="null" size="10" style="NORMAL" color="-16777216" userowshading="false" oddrowshading="-1" evenrowshading="-1" showborders="true" spacingbefore="12" spacingafter="12" horizontalalign="LEFT" />
+				<header enable="false" generatedate="false">
+					<data>
+					
+					
+					
+					
+					null																									</data>
+				</header>
+				<footer enable="false" generatedate="false">
+					<data value="null" />
+				</footer>
+				<security enable="false" useopenpassword="false" openpassword="null" encryption="EXCLUDE_METADATA">
+					<permission enable="false" permissionpassword="null" allowcopying="true" allowprinting="true" allowupdating="false" allowaccessdevices="false" />
+				</security>
+				<pagesetup papersize="LETTER" orientation="1" measurement="in" margintop="1.0" marginbottom="1.0" marginleft="1.0" marginright="1.0" />
+			</pdf>
+	</display>
+	<display id="null" type="" style="Table" enable="true">
+		<name><![CDATA[SeqQ]]></name>
+		<description><![CDATA[]]></description>
+		<tooltip><![CDATA[]]></tooltip>
+		<drillclass><![CDATA[null]]></drillclass>
+		<CustomValues>
+			<TYPE>horizontal</TYPE>
+		</CustomValues>
+		<query>
+			<sql><![CDATA[select gboffset,queue_name Q,sizmb, status
+,trunc((sysdate-start_date)*24*60*60) secs
+,owner,segment_name,part_name,segment_type,new_tablespace_name,tablespace_name
+,sqlmsg
+,force,include_ind
+,objtype,a.*
+from DW_BIB_MAINT_QUEUE a
+where
+1=1
+--and a.status in('ready','hold','BUSY','FAIL')
+and segment_name=:SEGMENT_NAME
+--and objtype='TABLE'
+--and table_name like '%FIRST%'
+--and segment_type='TABLE'
+order by case when a.status='BUSY' then 1 when a.status='FAIL' then 2 else 10 end , 1 desc]]></sql>
+		</query>
+			<pdf version="VERSION_1_7" compression="CONTENT">
+				<docproperty title="null" author="null" subject="null" keywords="null" />
+				<cell toppadding="2" bottompadding="2" leftpadding="2" rightpadding="2" horizontalalign="LEFT" verticalalign="TOP" wrap="true" />
+				<column>
+					<heading font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="FIRST_PAGE" />
+					<footing font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="NONE" />
+					<blob blob="NONE" zip="false" />
+				</column>
+				<table font="null" size="10" style="NORMAL" color="-16777216" userowshading="false" oddrowshading="-1" evenrowshading="-1" showborders="true" spacingbefore="12" spacingafter="12" horizontalalign="LEFT" />
+				<header enable="false" generatedate="false">
+					<data>
+					
+					
+					
+					
+					null																									</data>
+				</header>
+				<footer enable="false" generatedate="false">
+					<data value="null" />
+				</footer>
+				<security enable="false" useopenpassword="false" openpassword="null" encryption="EXCLUDE_METADATA">
+					<permission enable="false" permissionpassword="null" allowcopying="true" allowprinting="true" allowupdating="false" allowaccessdevices="false" />
+				</security>
+				<pagesetup papersize="LETTER" orientation="1" measurement="in" margintop="1.0" marginbottom="1.0" marginleft="1.0" marginright="1.0" />
+			</pdf>
+	</display>
+	<display id="null" type="" style="Table" enable="true">
+		<name><![CDATA[QSpace]]></name>
+		<description><![CDATA[]]></description>
+		<tooltip><![CDATA[]]></tooltip>
+		<drillclass><![CDATA[null]]></drillclass>
+		<CustomValues>
+			<TYPE>horizontal</TYPE>
+		</CustomValues>
+		<query>
+			<sql><![CDATA[select trunc(sum(bytes)/1024/1024/1024,2) GB, segment_name,tablespace_name, count(*), min(partition_name),max(partition_name), max(owner),min(owner)
+from dba_segments
+where segment_name in 
+(select segment_name from dw_bib_maint_queue )
+and partition_name in 
+(select subpartition_name from dw_bib_maint_queue  )
+and segment_name||partition_name in (select segment_name||subpartition_name from dw_bib_maint_queue)
+group by segment_name,tablespace_name
+order by 1 desc]]></sql>
+		</query>
+			<pdf version="VERSION_1_7" compression="CONTENT">
+				<docproperty title="null" author="null" subject="null" keywords="null" />
+				<cell toppadding="2" bottompadding="2" leftpadding="2" rightpadding="2" horizontalalign="LEFT" verticalalign="TOP" wrap="true" />
+				<column>
+					<heading font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="FIRST_PAGE" />
+					<footing font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="NONE" />
+					<blob blob="NONE" zip="false" />
+				</column>
+				<table font="null" size="10" style="NORMAL" color="-16777216" userowshading="false" oddrowshading="-1" evenrowshading="-1" showborders="true" spacingbefore="12" spacingafter="12" horizontalalign="LEFT" />
+				<header enable="false" generatedate="false">
+					<data>
+					
+					
+					
+					
+					null																									</data>
+				</header>
+				<footer enable="false" generatedate="false">
+					<data value="null" />
+				</footer>
+				<security enable="false" useopenpassword="false" openpassword="null" encryption="EXCLUDE_METADATA">
+					<permission enable="false" permissionpassword="null" allowcopying="true" allowprinting="true" allowupdating="false" allowaccessdevices="false" />
+				</security>
+				<pagesetup papersize="LETTER" orientation="1" measurement="in" margintop="1.0" marginbottom="1.0" marginleft="1.0" marginright="1.0" />
+			</pdf>
+	</display>
+	<display id="null" type="" style="Table" enable="true">
+		<name><![CDATA[RtLog]]></name>
+		<description><![CDATA[]]></description>
+		<tooltip><![CDATA[]]></tooltip>
+		<drillclass><![CDATA[null]]></drillclass>
+		<CustomValues>
+			<TYPE>horizontal</TYPE>
+		</CustomValues>
+		<query>
+			<sql><![CDATA[select
+trunc((sysdate-a.error_sysdate)*24*60*60,2) DT_Sec,
+task,
+DW_LOG_ID, PROCESS_NAME, 
+substr(a.MESSAGE,1,3000),
+--MESSAGE,
+ERROR_CODE, ERROR_SYSDATE,
+dw_sid,dw_inst_id,
+ID_1, ID_2, ID_3, ID_4, a.DW_TASK_ID, a.DW_RUN_ID, a.DW_RANGE_VALUE_ID, a.DW_STEP_ID, a.DW_BATCH_ID
+from dw_rt_log_app  a left outer join dw_tasks b on (a.dw_task_id=b.dw_task_id)
+where 
+1=1 
+and error_sysdate>sysdate-0.1
+--and a.dw_task_id=:DW_TASK_ID
+and id_2 in 
+(select inst_id||'-'||sid from dw_bib_maint_queue 
+where segment_name=:SEGMENT_NAME and status in ('BUSY','FAIL'))
+order by error_sysdate desc , DW_LOG_ID desc]]></sql>
+		</query>
+			<pdf version="VERSION_1_7" compression="CONTENT">
+				<docproperty title="null" author="null" subject="null" keywords="null" />
+				<cell toppadding="2" bottompadding="2" leftpadding="2" rightpadding="2" horizontalalign="LEFT" verticalalign="TOP" wrap="true" />
+				<column>
+					<heading font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="FIRST_PAGE" />
+					<footing font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="NONE" />
+					<blob blob="NONE" zip="false" />
+				</column>
+				<table font="null" size="10" style="NORMAL" color="-16777216" userowshading="false" oddrowshading="-1" evenrowshading="-1" showborders="true" spacingbefore="12" spacingafter="12" horizontalalign="LEFT" />
+				<header enable="false" generatedate="false">
+					<data>
+					
+					
+					
+					null																				</data>
+				</header>
+				<footer enable="false" generatedate="false">
+					<data value="null" />
+				</footer>
+				<security enable="false" useopenpassword="false" openpassword="null" encryption="EXCLUDE_METADATA">
+					<permission enable="false" permissionpassword="null" allowcopying="true" allowprinting="true" allowupdating="false" allowaccessdevices="false" />
+				</security>
+				<pagesetup papersize="LETTER" orientation="1" measurement="in" margintop="1.0" marginbottom="1.0" marginleft="1.0" marginright="1.0" />
+			</pdf>
+	</display>
+	<display id="null" type="" style="Table" enable="true">
+		<name><![CDATA[PX-sessions]]></name>
+		<description><![CDATA[]]></description>
+		<tooltip><![CDATA[]]></tooltip>
+		<drillclass><![CDATA[null]]></drillclass>
+		<CustomValues>
+			<TYPE>horizontal</TYPE>
+		</CustomValues>
+		<query>
+			<sql><![CDATA[select * from 
+(select s.inst_id,s.sid,s.serial# SERIAL,s.program,s.module,
+s.event,s.SQL_ID,s.machine,s.osuser,s.logon_time
+,trunc((sysdate- s.SQL_EXEC_START)*24*60,2) Mins_Exec
+,trunc((sysdate-s.logon_time)*24*60,2) Mins_Logon
+,s.seconds_in_wait
+/*,t.sql_text*/
+,s.P1, s.P1Text, s.P2, s.P2Text, s.P3, s.P3Text
+, s.username,s.schemaname
+, s.service_name
+, action,client_info
+, s.blocking_instance
+, s.blocking_session
+, s.final_blocking_instance
+, s.final_blocking_session
+,s.sql_hash_value
+, 'ALTER SYSTEM KILL SESSION '''|| SID || ',' || s.SERIAL# || ', @' || s.INST_ID || ''';' Kill
+,s.status
+from gv$session s 
+where 
+1=1
+and 
+ s.sql_id in 
+ (select sql_id from gv$session where inst_id||'_'||sid in 
+     (select inst_id||'_'||sid from dw_bib_maint_queue 
+         where status='BUSY' and segment_name=:SEGMENT_NAME
+         )
+         )
+)
+order by case when status='ACTIVE' then 1 else 0 end desc, mins_exec desc nulls last, mins_logon desc nulls last]]></sql>
+		</query>
+			<pdf version="VERSION_1_7" compression="CONTENT">
+				<docproperty title="null" author="null" subject="null" keywords="null" />
+				<cell toppadding="2" bottompadding="2" leftpadding="2" rightpadding="2" horizontalalign="LEFT" verticalalign="TOP" wrap="true" />
+				<column>
+					<heading font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="FIRST_PAGE" />
+					<footing font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="NONE" />
+					<blob blob="NONE" zip="false" />
+				</column>
+				<table font="null" size="10" style="NORMAL" color="-16777216" userowshading="false" oddrowshading="-1" evenrowshading="-1" showborders="true" spacingbefore="12" spacingafter="12" horizontalalign="LEFT" />
+				<header enable="false" generatedate="false">
+					<data>
+					
+					
+					
+					null																				</data>
+				</header>
+				<footer enable="false" generatedate="false">
+					<data value="null" />
+				</footer>
+				<security enable="false" useopenpassword="false" openpassword="null" encryption="EXCLUDE_METADATA">
+					<permission enable="false" permissionpassword="null" allowcopying="true" allowprinting="true" allowupdating="false" allowaccessdevices="false" />
+				</security>
+				<pagesetup papersize="LETTER" orientation="1" measurement="in" margintop="1.0" marginbottom="1.0" marginleft="1.0" marginright="1.0" />
+			</pdf>
+	</display>
+	<display id="null" type="" style="Table" enable="true">
+		<name><![CDATA[PX-longops]]></name>
+		<description><![CDATA[]]></description>
+		<tooltip><![CDATA[]]></tooltip>
+		<drillclass><![CDATA[null]]></drillclass>
+		<CustomValues>
+			<TYPE>horizontal</TYPE>
+		</CustomValues>
+		<query>
+			<sql><![CDATA[select * from (
+select
+s.sql_id,
+s.action,
+case when message like 'Insert%' or message like 'Update%' or message like 'Step%ows%'   then 'INS'
+     when message like 'Sort%' then 'SORT'
+     when message like 'Hash%' then 'HASH'
+     when message like '%Scan%' then 'SCAN'
+     else 'XXX' end TYPE,
+sum(sofar),
+sum(totalwork) tw,
+trunc(sum(SOFAR)/((max(elapsed_seconds))+2)) O_ps,
+trunc(sum(SOFAR)/((max(elapsed_seconds)/60)+2),2) O_PM,
+trunc((sum(sofar)/(sum(totalwork)+1))*100,2) prc,
+max( elapsed_seconds) el_sec, trunc((max(elapsed_seconds)/60)) as min_run,
+min(s.inst_id) MN_in,max(s.inst_id) MX_in,
+count(distinct s.inst_id) inst_cnt,
+count(1)
+,substr(message,1,instr(message,' ')) Tmsg
+from gv$session_longops u join gv$session s on (u.sid=s.sid and u.inst_id=s.inst_id  and u.serial#=s.serial#)
+where
+1=1
+/*and u.sofar <> u.totalwork*/
+and (message like '%Insert%:%' 
+ or message like 'Update%' 
+  or message like 'Sort%' 
+  or message like '%Scan%' 
+  or message like 'Hash%' 
+  or message like 'Step%ows%')
+and
+ s.sql_id in 
+ (select sql_id from gv$session where inst_id||'_'||sid in 
+     (select inst_id||'_'||sid from dw_bib_maint_queue 
+         where status='BUSY' and segment_name=:SEGMENT_NAME
+         )
+         )
+
+group by
+s.sql_id,
+s.action,
+case when message like 'Insert%'  or message like 'Update%' or message like 'Step%ows%'   then 'INS'
+     when message like 'Sort%' then 'SORT'
+     when message like 'Hash%' then 'HASH'
+     when message like '%Scan%' then 'SCAN'
+     else 'XXX' end,
+substr(message,1,instr(message,' '))
+order by 4,7 desc
+-- u.inst_id,u.sid
+)]]></sql>
+		</query>
+			<pdf version="VERSION_1_7" compression="CONTENT">
+				<docproperty title="null" author="null" subject="null" keywords="null" />
+				<cell toppadding="2" bottompadding="2" leftpadding="2" rightpadding="2" horizontalalign="LEFT" verticalalign="TOP" wrap="true" />
+				<column>
+					<heading font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="FIRST_PAGE" />
+					<footing font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="NONE" />
+					<blob blob="NONE" zip="false" />
+				</column>
+				<table font="null" size="10" style="NORMAL" color="-16777216" userowshading="false" oddrowshading="-1" evenrowshading="-1" showborders="true" spacingbefore="12" spacingafter="12" horizontalalign="LEFT" />
+				<header enable="false" generatedate="false">
+					<data>
+					
+					
+					
+					null																				</data>
+				</header>
+				<footer enable="false" generatedate="false">
+					<data value="null" />
+				</footer>
+				<security enable="false" useopenpassword="false" openpassword="null" encryption="EXCLUDE_METADATA">
+					<permission enable="false" permissionpassword="null" allowcopying="true" allowprinting="true" allowupdating="false" allowaccessdevices="false" />
+				</security>
+				<pagesetup papersize="LETTER" orientation="1" measurement="in" margintop="1.0" marginbottom="1.0" marginleft="1.0" marginright="1.0" />
+			</pdf>
+	</display>
+	<display id="null" type="" style="Table" enable="true">
+		<name><![CDATA[PX-Overview]]></name>
+		<description><![CDATA[]]></description>
+		<tooltip><![CDATA[]]></tooltip>
+		<drillclass><![CDATA[null]]></drillclass>
+		<CustomValues>
+			<TYPE>horizontal</TYPE>
+		</CustomValues>
+		<query>
+			<sql><![CDATA[select s.inst_id,
+                                      (s.cpu_time/1000000) "CPU_Seconds",
+                                      s.disk_reads "Disk_Reads",
+                                      s.buffer_gets "Buffer_Gets",
+                                      s.executions "Executions",
+                                      case when s.rows_processed = 0 then null
+                                           else round((s.buffer_gets/nvl(replace(s.rows_processed,0,1),1))) 
+                                           end "Buffer_gets/rows_proc",
+                                      round((s.buffer_gets/nvl(replace(s.executions,0,1),1))) "Buffer_gets/executions",
+                                      (s.elapsed_time/1000000) "Elapsed_Seconds", 
+                                      substr(s.sql_text,1,500) "SQL",
+                                      s.module "Module",
+                                      s.sql_id
+                                 from gv$sql s 
+                                 where 
+                                 1=1
+and  s.sql_id in 
+ (select sql_id from gv$session where inst_id||'_'||sid in 
+     (select inst_id||'_'||sid from dw_bib_maint_queue 
+         where status='BUSY' and segment_name=:SEGMENT_NAME
+         )
+         )]]></sql>
+		</query>
+			<pdf version="VERSION_1_7" compression="CONTENT">
+				<docproperty title="null" author="null" subject="null" keywords="null" />
+				<cell toppadding="2" bottompadding="2" leftpadding="2" rightpadding="2" horizontalalign="LEFT" verticalalign="TOP" wrap="true" />
+				<column>
+					<heading font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="FIRST_PAGE" />
+					<footing font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="NONE" />
+					<blob blob="NONE" zip="false" />
+				</column>
+				<table font="null" size="10" style="NORMAL" color="-16777216" userowshading="false" oddrowshading="-1" evenrowshading="-1" showborders="true" spacingbefore="12" spacingafter="12" horizontalalign="LEFT" />
+				<header enable="false" generatedate="false">
+					<data>
+					
+					
+					
+					null																				</data>
+				</header>
+				<footer enable="false" generatedate="false">
+					<data value="null" />
+				</footer>
+				<security enable="false" useopenpassword="false" openpassword="null" encryption="EXCLUDE_METADATA">
+					<permission enable="false" permissionpassword="null" allowcopying="true" allowprinting="true" allowupdating="false" allowaccessdevices="false" />
+				</security>
+				<pagesetup papersize="LETTER" orientation="1" measurement="in" margintop="1.0" marginbottom="1.0" marginleft="1.0" marginright="1.0" />
+			</pdf>
+	</display>
+	<display id="null" type="" style="Table" enable="true">
+		<name><![CDATA[PX-Stats]]></name>
+		<description><![CDATA[]]></description>
+		<tooltip><![CDATA[]]></tooltip>
+		<drillclass><![CDATA[null]]></drillclass>
+		<CustomValues>
+			<TYPE>horizontal</TYPE>
+		</CustomValues>
+		<query>
+			<sql><![CDATA[select name,sum(value) value from gv$sesstat a join v$statname b on (a.statistic#=b.statistic#)
+join gv$session se
+on  (a.inst_id=se.inst_id
+AND    a.sid=se.sid)
+where
+1=1 and
+se.sql_id in 
+ (select sql_id from gv$session where inst_id||'_'||sid in 
+     (select inst_id||'_'||sid from dw_bib_maint_queue 
+         where status='BUSY' and segment_name=:SEGMENT_NAME
+         )
+         )
+group by name
+order by 2 desc]]></sql>
+		</query>
+			<pdf version="VERSION_1_7" compression="CONTENT">
+				<docproperty title="null" author="null" subject="null" keywords="null" />
+				<cell toppadding="2" bottompadding="2" leftpadding="2" rightpadding="2" horizontalalign="LEFT" verticalalign="TOP" wrap="true" />
+				<column>
+					<heading font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="FIRST_PAGE" />
+					<footing font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="NONE" />
+					<blob blob="NONE" zip="false" />
+				</column>
+				<table font="null" size="10" style="NORMAL" color="-16777216" userowshading="false" oddrowshading="-1" evenrowshading="-1" showborders="true" spacingbefore="12" spacingafter="12" horizontalalign="LEFT" />
+				<header enable="false" generatedate="false">
+					<data>
+					
+					
+					
+					null																				</data>
+				</header>
+				<footer enable="false" generatedate="false">
+					<data value="null" />
+				</footer>
+				<security enable="false" useopenpassword="false" openpassword="null" encryption="EXCLUDE_METADATA">
+					<permission enable="false" permissionpassword="null" allowcopying="true" allowprinting="true" allowupdating="false" allowaccessdevices="false" />
+				</security>
+				<pagesetup papersize="LETTER" orientation="1" measurement="in" margintop="1.0" marginbottom="1.0" marginleft="1.0" marginright="1.0" />
+			</pdf>
+	</display>
+	<display id="null" type="" style="Table" enable="true">
+		<name><![CDATA[Jobs]]></name>
+		<description><![CDATA[]]></description>
+		<tooltip><![CDATA[]]></tooltip>
+		<drillclass><![CDATA[null]]></drillclass>
+		<CustomValues>
+			<TYPE>horizontal</TYPE>
+		</CustomValues>
+		<query>
+			<sql><![CDATA[select replace(substr(job_name,-3),'_','') jobnr,a.* from dba_scheduler_jobs a
+where job_name like 'DW_BIB_MAINT%'
+order by job_name]]></sql>
+		</query>
+			<pdf version="VERSION_1_7" compression="CONTENT">
+				<docproperty title="null" author="null" subject="null" keywords="null" />
+				<cell toppadding="2" bottompadding="2" leftpadding="2" rightpadding="2" horizontalalign="LEFT" verticalalign="TOP" wrap="true" />
+				<column>
+					<heading font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="FIRST_PAGE" />
+					<footing font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="NONE" />
+					<blob blob="NONE" zip="false" />
+				</column>
+				<table font="null" size="10" style="NORMAL" color="-16777216" userowshading="false" oddrowshading="-1" evenrowshading="-1" showborders="true" spacingbefore="12" spacingafter="12" horizontalalign="LEFT" />
+				<header enable="false" generatedate="false">
+					<data>
+					null					</data>
+				</header>
+				<footer enable="false" generatedate="false">
+					<data value="null" />
+				</footer>
+				<security enable="false" useopenpassword="false" openpassword="null" encryption="EXCLUDE_METADATA">
+					<permission enable="false" permissionpassword="null" allowcopying="true" allowprinting="true" allowupdating="false" allowaccessdevices="false" />
+				</security>
+				<pagesetup papersize="LETTER" orientation="1" measurement="in" margintop="1.0" marginbottom="1.0" marginleft="1.0" marginright="1.0" />
+			</pdf>
+	</display>
+</display>
+</displays>

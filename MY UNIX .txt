@@ -1,0 +1,43 @@
+ls * | head -5000 |  awk '{print "mv  " $1 " /data01/infa/PROD/TF_S2S_CS6_CCN_CDR/incoming ; echo DONE_"$1  }' |sh
+
+
+
+---atd services 
+
+/etc/init.d/atd restart
+ /etc/init.d/atd status
+atd (pid  136562) is running...
+
+mv incoming incoming_old;  mkdir incoming; chmod -R 775 incoming; chown -R oracle:bibftp incoming;
+
+
+----------------comparing list with what is in folder----------------------------------------------
+
+
+for i in `cat filelist.lst`;
+do
+if [ ! -e "$i" ]; then 
+echo $i >> /data01/infa/PROD/TF_S2S_CS6_CCN_CDR/errors/filesnotinwork.lst 
+fi;
+done;
+
+----------------------traverse filesnotinwork------------------------
+
+
+for i in `cat filesnotinwork.lst`;
+do
+      ls $i* | awk -F"_" '{system("mv "$0 " ../work/" substr($0,1,length($0)-length($NF)-1))}' ;
+done;
+
+
+
+-----renaming files by removing trail spaces---------------------------------------------
+
+
+ls | awk '{ print "mv -f "$0" "substr($0,1,index($0,".dat")+3)}' > /data01/infa/PROD/TF_S2S_CS6_CCN_CDR/incoming_temp/rename.sh
+
+
+---------------------history of ------------------------------------------------------------------------
+
+
+ls -l | awk '{ print $7 }' | sort | uniq -c

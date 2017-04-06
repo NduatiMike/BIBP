@@ -1,0 +1,407 @@
+SELECT SQL_TEXT, SADDR
+FROM V$SQLAREA,V$SESSION
+WHERE V$SQLAREA.ADDRESS = V$SESSION.SQL_ADDRESS
+AND UPPER(SQL_TEXT) LIKE 'ALTER%TABLESPACE%';
+/
+
+SELECT *
+--DISTINCT default_tablespace
+ FROM dba_users
+where default_tablespace like 'TS_CDR_STORE_NEW' ORDER BY 1;
+
+SELECT *  FROM dba_users 
+WHERE default_tablespace LIKE 'TS_CDR_STORE%' 
+ORDER BY 1;
+
+-------------------------Change the default tablespace
+
+alter user bib_cdr default tablespace TS_CDR_STORE_STATIC;
+
+ 
+exec dw_umd_utl.sr_upd('ALL_FILE_TASK_INIT','ALTER SESSION SET PARALLEL_FORCE_LOCAL=TRUE',' ',200);
+/
+
+select /*+ parallel(10)*/ * from  dba_tablespaces
+where
+tablespace_namE LIKE '%TS_BIB_M_7M_201609'
+order by tablespace_name
+; 
+
+select a.tablespace_name, file_id, b.status, block_size, file_name, round(bytes/1024/1024/1024) bytes_gb, autoextensible, bigfile, round(maxbytes/1024/1024/1024) maxbytes_gb
+from dba_data_files a, dba_tablespaces b 
+where a.tablespace_name = b.tablespace_name 
+and a.tablespace_name 
+    in (
+       'TS_BIB_M_7M_201609'
+       )
+--and  b.status   != 'ONLINE'
+;
+  
+
+select * from dba_part_indexes  where def_tablespace_name = 'TS_BIB_CDR_M_72M_201607' ;
+/
+
+select /*+ parallel(10)*/   *
+--'alter tablespace ' || tablespace_name   || '  read only;'
+from dba_tablespaces
+where 
+--tablespace_name   in (
+--       'TS_BIB_CDR_M_72M_201605_NEW',
+--       'TS_BIB_CDR_M_72M_201606_NEW',
+--       'TS_BIB_CDR_M_72M_201605',
+--       'TS_BIB_CDR_M_72M_201606'       
+--       )
+  tablespace_name    like 'TS_BIB_CDR_M_72M_2016%'
+and STATUS  = 'ONLINE'
+order by tablespace_name
+; 
+
+select /*+ parallel(10)*/ * from all_indexes
+where owner like 'STG_CDR'
+AND
+TABLE_NAME LIKE '%MSC_CDR' AND 
+PARTITIONED = 'NO'
+--AND (TABLE_NAME NOT LIKE 'CT%' AND  TABLE_NAME NOT LIKE 'PEX%')
+;
+
+begin
+  DW_BIB_MAINT_UTL.FIX_PARTITION_NAMES('BIB_CDR', 'FCT_CDR_RECHARGE');
+dw_bib_utl.RELEASE_SESSION_USER_LOCKS; 
+  
+end;
+/
+
+TS_STG_GEN_M_3M_201602
+--------------------------------------------------------ALL_TAB_PARTITIONS--------------------------------------------------------
+--------------------------------------------------------ALL_TAB_PARTITIONS--------------------------------------------------------
+
+--Move partitions 
+select /*+ parallel(10)*/ 
+a.*,
+-- 'ALTER TABLE ' ||table_owner || '.'
+--       ||table_name
+--       ||'  modify default attributes for partition '
+--       ||partition_name
+--       ||' TABLESPACE TS_BIB_CDR_M_3M_201607 ;  '
+--   ||' TABLESPACE ' || 'TS_'||table_owner||'_M_72M_'||substr(partition_name ,3,6)  ||' ; '
+      
+      
+     
+ 'ALTER TABLE ' ||table_owner || '.'
+       ||table_name
+       ||'  MOVE PARTITION '
+       ||partition_name
+       ||' TABLESPACE TS_STG_GEN_M_3M_201608 PARALLEL 4;  '
+--   ||' TABLESPACE ' || 'TS_'||table_owner||'_M_72M_'||substr(partition_name ,3,6)  ||' ; '
+      
+      
+FROM   all_tab_partitions a
+WHERE   TABLE_NAME in ( 
+'ABLM_GSM_SUBS_PROVISIONING'
+
+)
+and table_owner ='STG_GEN'
+and TABLESPACE_NAME like  'TS_STG_GEN_M_3M_201602'
+--AND partition_name LIKE '%201607%'
+--AND SUBSTR(PARTITION_NAME, 3) >= '20160301'
+
+--and rownum < 501 
+ORDER BY partition_name desc;
+/
+
+--------------------------------------------------------ALL_TAB_SUBPARTITIONS--------------------------------------------------------
+--------------------------------------------------------ALL_TAB_SUBPARTITIONS--------------------------------------------------------
+
+select /*+ parallel(10)*/ 
+--count(*) cnt
+ 'ALTER TABLE ' || table_owner || '.'
+       ||table_name
+       ||' MOVE SUBPARTITION '
+       ||SUBPARTITION_NAME
+       ||' TABLESPACE TS_BIB_CDR_M_3M_201607  parallel 4 ; '
+
+from  all_tab_subpartitions   
+where 
+table_name like '%FCT_MSISDN_RATED_SUMD'
+and TABLE_owner like 'BIB_CDR'
+and TABLESPACE_NAME     in (
+'TS_BIB_CDR_M_3M_201606'
+----'TS_STG_CDR_M_3M_201608'
+)
+AND partition_name LIKE '%201607%'
+order by partition_name DESC; 
+/
+
+
+
+--------------------------------------------------------DBA_IND_PARTITIONS--------------------------------------------------------
+--------------------------------------------------------DBA_IND_PARTITIONS--------------------------------------------------------
+ alter index BIB_CDR.UI_CDR_RECHARGE modify default attributes for partition  SYS_P22639244 tablespace TS_BIB_CDR_M_3M_201607;
+ 
+alter table BIB_CDR.FCT_CDR_RECHARGE drop partition SYS_P22639244;
+
+select /*+ parallel(10)*/ A.*,
+ 'alter index '||index_owner||'.'||index_name||' modify default attributes for partition  '|| PARTITION_NAME ||' tablespace TS_BIB_CDR_M_3M_201611;'
+ 
+from dba_ind_partitions A
+where
+-- tablespace_name  like  'TS_BIB_CDR_M_3M_201610'
+and index_name like '%BIX_FCT_CDR_PREPAID_TRANS_DED '
+--AND PARTITION_NAME  NOT  LIKE '%201608%'
+--and composite  = 'YES'
+ORDER BY PARTITION_NAME;
+/
+
+
+
+
+--------------------------------------------------------DBA_IND_SUBPARTITIONS--------------------------------------------------------
+--------------------------------------------------------DBA_IND_SUBPARTITIONS--------------------------------------------------------
+ALTER INDEX BIB_CDR.UK_FCT_CDR_RECHARGE_IDX  REBUILD SUBPARTITION SYS_SUBP22639233  tablespace TS_BIB_CDR_M_3M_201607 parallel 16 ;
+
+select /*+ parallel(10)*/ 
+a.*,
+ 'ALTER INDEX ' || INDEX_OWNER || '.' ||INDEX_NAME || ' REBUILD SUBPARTITION ' || SUBPARTITION_NAME || '  tablespace TS_BIB_CDR_M_3M_201607 parallel 16 ;'
+--  'ALTER INDEX ' || INDEX_OWNER || '.' ||INDEX_NAME || ' modify default attributes   tablespace TS_BIB_CDR_M_3M_201607;'
+-- STATUS , a.* 
+from a
+where 
+--STATUS not in ('USABLE')
+  INDEX_OWNER in ('BIB_CDR')
+--and index_name  LIKE '%MSC_CDR%'
+--and PARTITION_NAME    NOT like '%ind_tab_s%'
+AND TABLESPACE_NAME  LIKE 'TS_BIB_CDR_M_3M_201606'
+ORDER BY PARTITION_NAME desc
+;
+/ 
+/
+select /*+ parallel(10)*/ * from dba_part_tables
+where table_name like '%CS5_CCN_GPRS_MA' 
+and owner like 'STG_CDR';
+
+/
+select /*+ parallel(10)*/ * from dba_part_indexes
+where table_name like 'GGSN_CDR' 
+and owner like 'STG_CDR';
+
+
+--select /*+ parallel(10)*/ * from dba_subpart_indexes
+--where table_name like 'FCT_CDR_PREPAID_RATED' 
+--and owner like 'BIB_CDR';
+/
+
+
+
+
+
+
+ALTER TABLE STG_CDR.MSC_CDR  modify default attributes   tablespace TS_STG_CDR_M_2M_201609;
+
+ALTER INDEX BIB_CDR.UI_CDR_PREPAID_RATED  modify default attributes   tablespace TS_BIB_CDR_M_72M_201608;
+
+ALTER INDEX BIB_CDR.UK_FCT_CDR_RECHARGE_01  modify default attributes   tablespace TS_BIB_CDR_M_3M_201607;
+
+alter index STG_CDR.UK_MSC_CDR modify default attributes   tablespace TS_STG_CDR_STATIC;
+alter index STG_CDR.BI__ERR_MSC_CDR modify default attributes   tablespace TS_STG_CDR_STATIC;
+/
+
+
+alter user stg_cdr default tablespace TS_STG_CDR_M_3M_201608;
+/
+
+
+--------------------------------------------------------DBA_EXTENTS--------------------------------------------------------
+--------------------------------------------------------DBA_EXTENTS--------------------------------------------------------
+
+select /*+ parallel(10)*/ * from dba_extents
+where tablespace_name = 'TS_BIB_CDR_M_72M_201607'
+--and segment_name like '%FCT_CDR_PREPAID_RATED'
+and owner like 'BIB_CDR'
+--AND SEGMENT_TYPE LIKE 'TABLE%'
+AND PARTITION_NAME NOT LIKE '%P_201607%'; 
+
+
+--------------------------------------------------------DBA_SEGMENTS--------------------------------------------------------
+--------------------------------------------------------DBA_SEGMENTS--------------------------------------------------------
+
+select  /*+ parallel(10*/ 
+*
+ from dba_segments where tablespace_name  in ('TS_I_POSTPAID_Z')
+--and segment_name   not in (
+--'FCH_MSISDN_USAGE_LAST','FCH_PREPAID_FIRST', 'FCH_PREPAID_LAST'
+--)
+
+--and SEGMENT_TYPE NOT like 'INDEX%PARTITION'
+--and length (PARTITION_NAME) < 4
+--and PARTITION_NAME NOT like  '%P_201607%'
+;
+
+
+
+
+select count(*)
+from BIB_CDR.FCT_SUBS_RGE_LAST
+where to_char(LAST_RGE_DT,'yyyymmdd') = '20160810';
+/
+
+select /*+ parallel(10)*/  *
+--count(*)
+ from all_tab_partitions
+where 1=1
+-- AND table_name like 'I_MSH_MSISDN_HISTORY'
+and TABLE_owner like 'IA_USER'
+--AND PARTITION_NAME     LIKE '%TS_CDR_BACKUP%'
+--and tablespace_name like 'TS_I_POSTPAID_Z'
+ORDER BY PARTITION_NAME DESC;
+/
+ 
+ 
+
+
+select
+dw_partition.get_next_tablespace('BIB_CDR','FCT_CDR_PREPAID_RATED','P_20160818')
+from dual;
+
+select /*+ parallel(10)*/  
+'SELECT COUNT(*) FROM ' || TABLE_owner  || '.' || table_name || ' partition (' || PARTITION_NAME || ') UNION  ALL '
+ from all_tab_partitions
+where table_name like 'FRU_INTERCONNECT_SUMD'
+and TABLE_owner like 'BIB'
+--AND PARTITION_NAME LIKE '%201609%'
+and TO_NUMBER(substr(partition_name,3)) > 20160532
+--and tablespace_name like 'TS_STG_CDR_M_3M_201512'
+ORDER BY PARTITION_NAME  ;
+/
+
+
+
+select /*+ parallel(10)*/ * from all_tables
+ where owner like 'BIB%'
+ and table_name like '%%DW_TABLE%';
+ 
+ 
+ select /*+ parallel(10)*/ * from BIB_META.DW_TABLESPACE_PATTERN
+ where TABLESPACE_PATTERN like  'TS_BIB_CDR_M_%M_<YYYYMM>' ; 
+ 
+ select /*+ parallel(10)*/ * from all_sequences
+ where sequence_name like '%DW_TABLESPACE_PATTERN%'
+ and sequence_owner like 'BIB_META'; 
+ 
+ /
+ 
+ SET DEFINE OFF;
+Insert into BIB_META.DW_TABLESPACE_PATTERN
+   (TABLESPACE_PATTERN_ID, TABLESPACE_PATTERN, INTERVAL_UOM, RETENTION_UOM, LIVE_PERIOD, RETENTION_PERIOD, DEF_DROP_DELAY_IN_DAYS, DEF_EXPORT_REQUIRED_IND)
+ Values
+   (bib_meta.DW_TABLESPACE_PATTERN_SEQ.nextval, 'TS_BIB_CDR_M_72M_<YYYYMM>', 'M', 'M', 3, 
+    72, 7, 'Y');
+COMMIT;
+
+-- 
+--Insert into BIB_META.DW_TABLESPACE_PATTERN
+--   (TABLESPACE_PATTERN_ID, TABLESPACE_PATTERN, INTERVAL_UOM, RETENTION_UOM, LIVE_PERIOD, RETENTION_PERIOD, DEF_DROP_DELAY_IN_DAYS, DEF_EXPORT_REQUIRED_IND)
+-- Values
+--   (bib_meta.DW_TABLESPACE_PATTERN_SEQ.nextval, 'TS_BIB_CDR_M_121M_<YYYYMM>', 'M', 'M', 3, 
+--    121, 7, 'Y');
+--COMMIT;
+
+
+ALTER TABLE  BIB_CDR.FCP_CDR_UNRATED MOVE partition  P_90830108 tablespace TS_BIB_CDR_M_72M_201608 parallel 4;
+
+
+/
+--------------------DW_BIB_CDR_STORE_IN_PARTS----------------------------------
+BEGIN
+DW_REMOTE_JOB.SCHEDULE_PLSQL(PI_JOBNAME => 'DW_BIB_CDR_STORE_IN_PARTS', PI_PLSQLBLOCK =>
+'
+begin 
+dw_partition.SET_STORE_IN_FOR_INTERVAL(p_table_like =>''FCP_CDR_UNRATED'', p_schema => ''BIB_CDR'' ,p_timeout_minutes =>30,p_limit=>500, p_fix_parttn_names => ''Y''); 
+end;
+');
+END;
+
+/
+
+
+begin 
+DW_PARTITION.SET_STORE_IN_FOR_INTERVAL(p_table_like =>'FCP_CDR_UNRATED', p_schema => 'BIB_CDR' ,p_timeout_minutes =>30,p_limit=>500, p_fix_parttn_names =>'Y'); 
+dw_bib_utl.RELEASE_SESSION_USER_LOCKS;   
+end;
+/
+
+select * from dw_table_metadata b
+            where 
+--            TABLESPACE_VARIABLE like 'TS_BIB_CDR_M_72M%2016%'
+             table_name like 'FCT_CDR_PREPAID_RATED'
+            and schema_name like 'BIB_CDR'
+--            and interval_ind = 'Y'
+--            and partitioning_key = 'Batch'
+--            and  location <> 'LOCATION:BIB_META'
+
+
+            ;
+ 
+
+---------------------------------------------FROM STANTON--------------------
+
+select  * from all_indexes 
+where owner like 'STG_CDR'
+--AND  TABLE_NAME LIKE '%MSC_CDR' 
+and tablespace_name like '%TS_STG_CDR_M_3M_201608%'
+AND PARTITIONED = 'NO';
+/
+
+select /*+ parallel(10)*/ 
+a.*,
+-- 'ALTER TABLE ' ||table_owner || '.'
+--       ||table_name
+--       ||'  modify default attributes for partition '
+--       ||partition_name
+--       ||' TABLESPACE TS_BIB_CDR_M_3M_201607 ;  '
+--   ||' TABLESPACE ' || 'TS_'||table_owner||'_M_72M_'||substr(partition_name ,3,6)  ||' ; '
+
+'ALTER TABLE ' ||table_owner || '.'
+       ||table_name
+       ||'  DROP PARTITION '
+       ||partition_name
+       ||'  ;  '
+
+FROM   all_tab_partitions a
+WHERE   1=1
+--AND TABLE_NAME in ( 
+--'FCT_CDR_INTERCONNECT_SUMD',
+--'FCT_CDR_EWP_SESSION_EVENT',
+--'FCO_CDR_TRANS_COMB',
+--'FCT_CDR_TAP_OUT',
+--'FCT_MSISDN_PREPAID_DED_SUMD',
+--'FCT_CDR_PREPAID_SNAPD',
+--'FCT_CDR_ADJUSTMENT_ACC',
+--'FCT_CDR_RATED_COMB',
+--'FCT_CDR_ADJUSTMENT_DED',
+--'FCT_MSISDN_GEOGRAPHY_SUMD',
+--'FCT_MSISDN_PREPAID_SUMD',
+--'FCT_CDR_EWP_FIN_TRAN_EVENT',
+--'FCT_CDR_TAP_IN',
+--'FCT_CDR_PREPAID_DED_SNAPD',
+--'FCO_MSISDN_GEOGRAPHY_SUMD',
+--'FCT_CDR_PREPAID_RATED_DED',
+--'FCT_CDR_RECHARGE_ACC',
+--'FCT_MSISDN_BASE_STATION_SUMD',
+--'FCT_CDR_UNRATED',
+--'FCT_SUBS_SNAPD',
+--'FCT_CDR_SUBS_EVENT',
+--'FCT_CDR_TRANS_COMB',
+--'FCT_CDR_PREPAID_TRANS_DED',
+--'FRU_MSISDN_RATED_DED_SUMW'
+--)
+and table_owner ='BIB_CDR'
+and TABLESPACE_NAME like  'TS_BIB_CDR_M_3M_201606'
+--AND partition_name NOT LIKE '%201606%'
+--AND SUBSTR(PARTITION_NAME, 3) >= '20160631'
+
+--and rownum < 501 
+ORDER BY partition_name desc
+;
+/
+ 
+ALTER TABLE BIB_CDR.FCT_CDR_RECHARGE  DROP PARTITION SYS_P22633868 ;  

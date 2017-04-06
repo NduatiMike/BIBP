@@ -1,0 +1,58 @@
+------------------CHECK FOR SESSION ID-----------------------------------------
+--------------------------------------------------------------------------------
+select
+sid,
+a.dw_run_id,
+task, 
+run_status,
+round(((sysdate-start_date)*24*60),0) run_time_mins
+from dw_rt_runs a
+left outer join ( select
+                  substr(client_info,11, instr(substr(client_info,11),' ')-1) dw_run_id,
+                  sid
+                  from gv$session
+                 ) g
+on a.dw_run_id = g.dw_run_id                 
+where a.dw_run_id = xxx --Run_id for the long running run.
+;
+
+---Check and reset for a specific task:
+
+BEGIN
+BIB_CTL.DW_BIB_UTL.RESET_RUNS_NOT_RUNNING('%TASK_NAME_LIKE%',0.001);
+END;
+
+
+------------------CHECK FOR BLOCKING  SESSIONS ID-------------------------------
+--------------------------------------------------------------------------------
+
+select 
+sid, 
+module,
+substr(client_info,11, instr(substr(client_info,11),' ')-1) dw_run_id,
+event,
+seconds_in_wait,
+blocking_session,
+final_blocking_session
+from gv$session
+where sid = xxx--sid from above step1.
+;
+
+------------------WHAT IS THE SESSION DOING ? LONGOPS---------------------------
+--------------------------------------------------------------------------------
+
+
+select  s.sid, s.module, s.action, message, sofar, totalwork tw, units, opname, s.client_info, trunc((sofar/(nvl(totalwork,1)+1))*100,2) perc, case when (Opname like 'Insert%' or Opname like 'Update%' or upper(Opname) like '%SORT%') then trunc(SOFAR/(elapsed_seconds+2)) else 0 end rows_ps, 
+time_remaining, trunc(time_remaining/60) as min_remain, trunc(time_remaining/60/60) as hr_remain, target, elapsed_seconds, trunc(elapsed_seconds/60) as min_run, u.*
+from gv$session_longops u join gv$session s on (u.sid=s.sid and u.inst_id=s.inst_id)
+left outer join gv$sqltext txt 
+on (txt.hash_value = s.sql_hash_value and s.inst_id = txt.inst_id)
+where 1=1
+and u.sofar <> u.totalwork
+and nvl(txt.piece,0)=0
+and action like '%xxxxxx%' --The batch_id for the long running run.
+order by 2, 4 desc
+;
+
+------------------WHEN WAS STATS GATHERED ? BAD EXECUTION PLAN------------------
+--------------------------------------------------------------------------------

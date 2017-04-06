@@ -1,0 +1,434 @@
+-----------------------------Sheet 1 and 2--------------------------------
+-----------------------------Sheet 1 and 2--------------------------------
+
+    select /*+ parallel(10)*/  * from ( SELECT  /*+ parallel(10)*/  
+     TASK_TYPE, b.task,is_runnable runable,--PARAMETER_TYPE,
+           /*B.TASK_BUSINESS_AREA, TASK_TECHNICAL_AREA, */MAX_FILE_LOAD_CONCURRENCY CONCURNCY,  
+           max(CASE WHEN run_status IN('CLOSED', 'SUCCESS')THEN nvl(diy_parameter,to_number(to_char(end_date,'YYYYMMDD')))  END) LAST_RUN_DT,
+             (to_char(max(end_date),'HH24:MI:SS')) last_run_tm, 
+              SUM (CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END) QUEUE,
+              SUM (CASE WHEN run_status = 'RUNNING' THEN 1 ELSE 0 END) BUSY,
+              SUM (CASE WHEN run_status IN('CLOSED', 'SUCCESS')THEN 1 ELSE 0 END) DONE,
+              SUM (CASE WHEN run_status = 'FAILED' THEN 1 ELSE 0 END) FAIL,
+              SUM(case when run_status NOT IN ('FAILED','CLOSED','RUNNING','RUNABLE','SUCCESS') THEN 1 ELSE 0 END) OTHER,
+              (TO_CHAR (SUM (ROWS_LOADED), '999,999,999,999')) ROWS_LOADED,
+              (TO_CHAR (SUM(a.ROWS_ERROR), '999,999,999,999')) ROWS_ERR,
+              TO_CHAR (ROUND (AVG (rows_loaded)), '999,999,999,999') avg_rows,
+              TO_CHAR ( ROUND (AVG (rows_loaded)) * SUM (CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END),'999,999,999,999') estimated_rows,
+                               FLOOR (AVG ( (24 * 60 * 60 * (end_date -start_date))) / 3600) || 'H:'
+              || FLOOR(AVG ((24 * 60 * 60 * (end_date -start_date))) / 60 - (FLOOR(AVG ( (24 * 60 * 60 * (END_DATE -START_DATE))) / 3600) * 60)) || 'm:'
+              || FLOOR(AVG ( (24 * 60 * 60 * (end_date -start_date)))
+                       - (FLOOR(AVG ( (24 * 60 * 60 * (END_DATE -START_DATE)))/ 3600))* 3600 - ( (FLOOR((AVG ((24*60 * 60 * (END_DATE -START_DATE)))/ 60)
+                                  - (FLOOR(AVG( (  24* 60* 60* (end_date -start_date))) / 3600) * 60))))* 60) || 's'  average_duration,
+              FLOOR(  AVG ( (24 * 60 * 60 * (end_date - start_date))) * SUM (CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END)/ 3600) || 'h:'
+              || FLOOR(AVG ( (24 * 60 * 60 * (end_date - start_date)))* SUM (CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END) / 60 - (FLOOR(AVG ( (24 * 60 * 60 * (END_DATE - START_DATE)))
+               * SUM(CASE  WHEN run_status = 'RUNABLE' THEN 1  ELSE 0  END) / 3600) * 60)) || 'm:' || FLOOR(AVG ( (24 * 60 * 60 * (end_date - start_date)))  * SUM (CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END )
+                       - (FLOOR(AVG ( (24 * 60 * 60 * (END_DATE - START_DATE))) * SUM(CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END) / 3600)) * 3600
+                       - ( (FLOOR(AVG ( (24 * 60 * 60 * (END_DATE - START_DATE))) * SUM(CASE WHEN run_status = 'RUNABLE' THEN 1  ELSE 0 END) / 60
+                                  - (FLOOR(AVG( (  24* 60* 60 * (END_DATE - START_DATE))) * SUM(CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END) / 3600) * 60)))) * 60) || 's' as estimated_load_duration,
+              /*sum(ROWS_ERROR) ROWS_ERROR, sum(ROWS_UPDATED) ROWS_UPDATED, sum(ROWS_INSERTED) ROWS_INSERTED*/
+              100  - ROUND ( ( (SUM (CASE WHEN run_status in('RUNABLE','FAILED') THEN 1 ELSE 0 END))
+                    / NULLIF ( SUM(CASE WHEN run_status IN  ('RUNABLE', 'RUNNING', 'FAILED', 'CLOSED','SUCCESS') THEN 1 ELSE 0 END), 0 ))* 100,2) as PERCENTAGE_COMPLETED,
+                    SUM(a.ROWS_INSERTED) ROWS_INSERTED,
+                    SUM(a.ROWS_UPDATED)  ROWS_UPDATED
+       FROM  dw_rt_runs a, dw_tasks b
+      WHERE  a.DW_TASK_ID(+) = b.DW_TASK_ID
+--     AND B.TASK_TYPE ='FILE'/* file task */
+--     and b.task like '%%'  /* S2C task */
+     and b.task like '%S2C%'  /* S2C task */
+     and b.task not like '%PATTERN%'
+   GROUP BY   TASK_TYPE, b.task,is_runnable ,PARAMETER_TYPE, B.TASK_BUSINESS_AREA,TASK_TECHNICAL_AREA,  MAX_FILE_LOAD_CONCURRENCY )
+   order by busy desc,queue desc, last_run_dt;
+   /
+   
+  
+  
+  
+  ---------------------------File loader speed etc ------------------------------------------
+
+
+select --task,
+ to_char(start_date,'YYYYMMDD') start_dt,to_char(start_date,'HH24') start_tm,
+ -- to_char(start_date,'MI') START_MI,
+      sum(rows_loaded) rows_loaded, count(*)cnt, round(avg(rows_loaded)) avg_rows,
+      round(AVG((24*60*60*(end_date-start_date)))/60) minutes, sysdate refresh_dt
+    from dw_rt_runs
+   where task like 'TF%%%%'
+     and to_char(start_date,'YYYYMMDDHH24') > to_char(SYSDATE-0.2,'YYYYMMDDHH24') 
+     and run_status IN('SUCCESS','CLOSED')
+group by --task,
+to_char(start_date,'YYYYMMDD'),to_char(start_date,'HH24')--,to_char(start_date,'MI')
+   order by to_char(start_date,'YYYYMMDD') desc, to_char(start_date,'HH24') desc;--,  to_char(start_date,'MI') desc
+   
+   
+
+----------------Monitor archive register------------------------------
+
+select * from dw_rt_log_app
+where dw_task_id = dw_get_task_id ('TF_S2S_XDR_SV_ZA')  
+  AND  PROCESS_NAME  = 'DW_FILE_TASK_REGISTER'
+  AND PROCESS_NAME <> 'DW_FILE_TASK_ARCHIVE'
+  AND PROCESS_NAME <> 'DW_REMOTE_JOB'
+  AND PROCESS_NAME <> 'DW_FILE_TASK_AUDIT'
+and error_sysdate>=sysdate -0.5
+order by 1 desc;
+
+------------Monitor tf tasks que ----------------------------
+
+select * from vw_rt_runs a
+where task like 'TF%%'
+   and last_run_dt is  not null
+   order by queue desc, task, last_run_dt DESC,queue desc, fail desc;
+   
+   
+----------------------------------------------------------File and S2C Loading Details-------------------------------------
+------------------------------------------------------File and S2C Loading Details-----------------------------------------
+
+
+--CREATE OR REPLACE VIEW VW_RT_RUNS AS 
+    select /*+ parallel(10)*/ *
+    
+    from ( SELECT /*diy_parameter,DW_TASK_ID,*/TASK_TYPE,-- b.task,is_runnable runable,--PARAMETER_TYPE,
+           --/*B.TASK_BUSINESS_AREA, TASK_TECHNICAL_AREA, */MAX_FILE_LOAD_CONCURRENCY CONCURNCY,  
+           to_char(/*max*/nvl(end_date,start_date),'YYYYMMDD') DATE_KEY,a.task,
+             to_char(/*max*/nvl(end_date,start_date),'HH24') last_run_tm, 
+              SUM (CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END) QUEUE,
+              SUM (CASE WHEN run_status = 'RUNNING' THEN 1 ELSE 0 END) BUSY,
+              SUM (CASE WHEN run_status IN('CLOSED', 'SUCCESS')THEN 1 ELSE 0 END) DONE,
+              SUM (CASE WHEN run_status = 'FAILED' THEN 1 ELSE 0 END) FAIL,
+              SUM(case when run_status NOT IN ('FAILED','CLOSED','RUNNING','RUNABLE','SUCCESS') THEN 1 ELSE 0 END) OTHER,
+--              (TO_CHAR (SUM (ROWS_LOADED), '999,999,999,999')) ROWS_LOADED,
+               SUM (ROWS_LOADED)  ROWS_LOADED,
+              (TO_CHAR (SUM(a.ROWS_ERROR), '999,999,999,999')) ROWS_ERR,
+--              TO_CHAR (ROUND (AVG (rows_loaded)), '999,999,999,999') avg_rows,
+               ROUND (AVG (rows_loaded)) avg_rows,
+              TO_CHAR ( ROUND (AVG (rows_loaded)) * SUM (CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END),'999,999,999,999') estimated_rows,
+                               FLOOR (AVG ( (24 * 60 * 60 * (end_date -start_date))) / 3600) || 'H:'
+              || FLOOR(AVG ((24 * 60 * 60 * (end_date -start_date))) / 60 - (FLOOR(AVG ( (24 * 60 * 60 * (END_DATE -START_DATE))) / 3600) * 60)) || 'm:'
+              || FLOOR(AVG ( (24 * 60 * 60 * (end_date -start_date)))
+                       - (FLOOR(AVG ( (24 * 60 * 60 * (END_DATE -START_DATE)))/ 3600))* 3600 - ( (FLOOR((AVG ((24*60 * 60 * (END_DATE -START_DATE)))/ 60)
+                                  - (FLOOR(AVG( (  24* 60* 60* (end_date -start_date))) / 3600) * 60))))* 60) || 's'  average_duration,
+              FLOOR(  AVG ( (24 * 60 * 60 * (end_date - start_date))) * SUM (CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END)/ 3600) || 'h:'
+              || FLOOR(AVG ( (24 * 60 * 60 * (end_date - start_date)))* SUM (CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END) / 60 - (FLOOR(AVG ( (24 * 60 * 60 * (END_DATE - START_DATE)))
+               * SUM(CASE  WHEN run_status = 'RUNABLE' THEN 1  ELSE 0  END) / 3600) * 60)) || 'm:' || FLOOR(AVG ( (24 * 60 * 60 * (end_date - start_date)))  * SUM (CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END )
+                       - (FLOOR(AVG ( (24 * 60 * 60 * (END_DATE - START_DATE))) * SUM(CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END) / 3600)) * 3600
+                       - ( (FLOOR(AVG ( (24 * 60 * 60 * (END_DATE - START_DATE))) * SUM(CASE WHEN run_status = 'RUNABLE' THEN 1  ELSE 0 END) / 60
+                                  - (FLOOR(AVG( (  24* 60* 60 * (END_DATE - START_DATE))) * SUM(CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END) / 3600) * 60)))) * 60) || 's' as estimated_load_duration,
+              /*sum(ROWS_ERROR) ROWS_ERROR, sum(ROWS_UPDATED) ROWS_UPDATED, sum(ROWS_INSERTED) ROWS_INSERTED*/
+              100  - ROUND ( ( (SUM (CASE WHEN run_status in('RUNABLE','FAILED') THEN 1 ELSE 0 END))
+                    / NULLIF ( SUM(CASE WHEN run_status IN  ('RUNABLE', 'RUNNING', 'FAILED', 'CLOSED','SUCCESS') THEN 1 ELSE 0 END), 0 ))* 100,2) as PERCENTAGE_COMPLETED,
+                    SUM(a.ROWS_INSERTED) ROWS_INSERTED,
+                    SUM(a.ROWS_UPDATED)  ROWS_UPDATED
+       FROM  dw_rt_runs a, dw_tasks b
+      WHERE  a.DW_TASK_ID(+) = b.DW_TASK_ID
+--     AND B.TASK_TYPE ='FILE'/* file task */
+     and b.task like '%S2C%'  /* S2C task */
+     and b.task not like '%PATTERN%'
+     AND to_char(/*max*/nvl(end_date,start_date),'YYYYMMDD') >= '20161107'
+   GROUP BY to_char(/*max*/nvl(end_date,start_date),'HH24'),to_char(/*max*/nvl(end_date,start_date),'YYYYMMDD'), TASK_TYPE,a.task )
+   --TASK_TYPE, b.task,is_runnable ,PARAMETER_TYPE, B.TASK_BUSINESS_AREA,TASK_TECHNICAL_AREA,  MAX_FILE_LOAD_CONCURRENCY )
+   --order by busy desc,queue desc, last_run_dt;
+
+/
+
+   
+   
+----------------------------------------------------------RT ALL Details------------------------------------
+----------------------------------------------------------RT ALL Details------------------------------------
+
+select /*+ parallel(10)*/ *  from ( SELECT /*diy_parameter,DW_TASK_ID,*/TASK_TYPE,-- b.task,is_runnable runable,--PARAMETER_TYPE,
+           --/*B.TASK_BUSINESS_AREA, TASK_TECHNICAL_AREA, */MAX_FILE_LOAD_CONCURRENCY CONCURNCY,  
+           to_char(/*max*/nvl(end_date,start_date),'YYYYMMDD') DATE_KEY,
+             to_char(/*max*/nvl(end_date,start_date),'HH24') HRS, 
+              SUM (CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END) QUEUE,
+              SUM (CASE WHEN run_status = 'RUNNING' THEN 1 ELSE 0 END) BUSY,
+              SUM (CASE WHEN run_status IN('CLOSED', 'SUCCESS')THEN 1 ELSE 0 END) DONE,
+              SUM (CASE WHEN run_status = 'FAILED' THEN 1 ELSE 0 END) FAIL,
+              SUM(case when run_status NOT IN ('FAILED','CLOSED','RUNNING','RUNABLE','SUCCESS') THEN 1 ELSE 0 END) OTHER,
+              (TO_CHAR (SUM (ROWS_LOADED), '999,999,999,999')) ROWS_LOADED,
+              (TO_CHAR (SUM(a.ROWS_ERROR), '999,999,999,999')) ROWS_ERR,
+              TO_CHAR (ROUND (AVG (rows_loaded)), '999,999,999,999') avg_rows,
+              TO_CHAR ( ROUND (AVG (rows_loaded)) * SUM (CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END),'999,999,999,999') estimated_rows,
+                               FLOOR (AVG ( (24 * 60 * 60 * (end_date -start_date))) / 3600) || 'H:'
+              || FLOOR(AVG ((24 * 60 * 60 * (end_date -start_date))) / 60 - (FLOOR(AVG ( (24 * 60 * 60 * (END_DATE -START_DATE))) / 3600) * 60)) || 'm:'
+              || FLOOR(AVG ( (24 * 60 * 60 * (end_date -start_date)))
+                       - (FLOOR(AVG ( (24 * 60 * 60 * (END_DATE -START_DATE)))/ 3600))* 3600 - ( (FLOOR((AVG ((24*60 * 60 * (END_DATE -START_DATE)))/ 60)
+                                  - (FLOOR(AVG( (  24* 60* 60* (end_date -start_date))) / 3600) * 60))))* 60) || 's'  average_duration,
+              FLOOR(  AVG ( (24 * 60 * 60 * (end_date - start_date))) * SUM (CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END)/ 3600) || 'h:'
+              || FLOOR(AVG ( (24 * 60 * 60 * (end_date - start_date)))* SUM (CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END) / 60 - (FLOOR(AVG ( (24 * 60 * 60 * (END_DATE - START_DATE)))
+               * SUM(CASE  WHEN run_status = 'RUNABLE' THEN 1  ELSE 0  END) / 3600) * 60)) || 'm:' || FLOOR(AVG ( (24 * 60 * 60 * (end_date - start_date)))  * SUM (CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END )
+                       - (FLOOR(AVG ( (24 * 60 * 60 * (END_DATE - START_DATE))) * SUM(CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END) / 3600)) * 3600
+                       - ( (FLOOR(AVG ( (24 * 60 * 60 * (END_DATE - START_DATE))) * SUM(CASE WHEN run_status = 'RUNABLE' THEN 1  ELSE 0 END) / 60
+                                  - (FLOOR(AVG( (  24* 60* 60 * (END_DATE - START_DATE))) * SUM(CASE WHEN run_status = 'RUNABLE' THEN 1 ELSE 0 END) / 3600) * 60)))) * 60) || 's' as estimated_load_duration,
+              /*sum(ROWS_ERROR) ROWS_ERROR, sum(ROWS_UPDATED) ROWS_UPDATED, sum(ROWS_INSERTED) ROWS_INSERTED*/
+              100  - ROUND ( ( (SUM (CASE WHEN run_status in('RUNABLE','FAILED') THEN 1 ELSE 0 END))
+                    / NULLIF ( SUM(CASE WHEN run_status IN  ('RUNABLE', 'RUNNING', 'FAILED', 'CLOSED','SUCCESS') THEN 1 ELSE 0 END), 0 ))* 100,2) as PERCENTAGE_COMPLETED,
+                    SUM(a.ROWS_INSERTED) ROWS_INSERTED,
+                    SUM(a.ROWS_UPDATED)  ROWS_UPDATED
+       FROM  dw_rt_runs a, dw_tasks b
+      WHERE  a.DW_TASK_ID(+) = b.DW_TASK_ID
+    -- AND B.TASK_TYPE ='FILE'/* file task */
+     and ( b.task like '%S2C%'  /* S2C task */ or  B.TASK_TYPE ='FILE'/* file task */)
+     and b.task not like '%PATTERN%'
+     AND to_char(/*max*/nvl(end_date,start_date),'YYYYMMDD') >= '20160101'
+   GROUP BY to_char(/*max*/nvl(end_date,start_date),'HH24'),to_char(/*max*/nvl(end_date,start_date),'YYYYMMDD'), TASK_TYPE )
+   --TASK_TYPE, b.task,is_runnable ,PARAMETER_TYPE, B.TASK_BUSINESS_AREA,TASK_TECHNICAL_AREA,  MAX_FILE_LOAD_CONCURRENCY )
+   --order by busy desc,queue desc, last_run_dt;
+;
+/
+----------------------------Reg per hours-------------------------
+----------------------------Reg per hours-------------------------
+
+select /*+ PARALLEl 10 */ to_char(REGISTER_DATETIME,'yyyymmdd') date_key,
+to_char(REGISTER_DATETIME,'HH24') HRS,
+COUNT(*) FILES
+ from dw_rt_files
+ where REGISTER_DATETIME >= sysdate -10 
+GROUP BY to_char(REGISTER_DATETIME,'yyyymmdd') ,
+to_char(REGISTER_DATETIME,'HH24') ;
+
+
+;/
+---------------From Vuyani------------------
+select t.task, t.is_runnable,to_char(max(start_datetime),'YYYYMMDD HH24:MI:SS') as max_start_d,
+sum(row_count) as row_count
+,sum(base_row_count) as base_row_coun
+,sum(bad_row_count) as bad_row_count
+,count(*) as nr_files
+, sum (case when processing_status='LOADED' then 1 else 0 end) loaded_c
+, sum (case when processing_status like 'BATCH%' then 1 else 0 end) batched_c
+, sum (case when processing_status like 'DUP%' then 1 else 0 end) dup_c
+, sum (case when processing_status like 'REGISTER%' then 1 else 0 end) reg_c
+, sum (case when processing_status in ('ARCHIVING','ARCHIVED') then 1 else 0 end) archive_c
+, sum (case when processing_status in ('ARCHIVEFAILED') then 1 else 0 end) arcive_F
+, sum (case when processing_status = 'FAILED' then 1 else 0 end) fail_c
+from dw_rt_files f join dw_tasks t on (f.dw_task_id = t.dw_task_id)
+where (nvl(start_datetime,sysdate) > sysdate-30)
+and t.task like '%'
+group by t.task, t.is_runnable
+
+;
+
+/
+
+
+--Slide 3 -4, 2nd picture
+
+select /*+ PARALLEl 10 */ to_char(REGISTER_DATETIME,'yyyymmdd') date_key,
+to_char(REGISTER_DATETIME,'HH24') HRS,
+COUNT(*) FILES, SUM(ROW_COUNT)
+ from dw_rt_files
+ where REGISTER_DATETIME >= sysdate -40 
+GROUP BY to_char(REGISTER_DATETIME,'yyyymmdd') ,
+to_char(REGISTER_DATETIME,'HH24') ;
+/
+
+--Slide 3 -4, 1st picture
+SELECT /*+PARALLEL (20) */ substr(short_filename,instr(short_filename,'2015'),8) DATE_KEY,
+replace(replace(PATH,'/data01/infa/PROD/CDR/'),'/incoming') STREAM,
+CASE PROCESSING_STATUS 
+WHEN 'LOADED' THEN  'PROCESSED'
+WHEN 'ARCHIVED' THEN  'PROCESSED'
+WHEN 'ARCHIVEFAILED' THEN  'PROCESSED'
+WHEN 'ARCHFAILED' THEN  'PROCESSED'
+WHEN 'ARCHIVING' THEN  'PROCESSED'
+ELSE
+PROCESSING_STATUS  
+END STATUS,COUNT(*) FILE_COUNT, SUM(ROW_COUNT)  ROW_COUNT
+FROM DW_RT_FILES
+WHERE substr(short_filename,instr(short_filename,'2015'),8) = 20150320
+GROUP BY replace(replace(PATH,'/data01/infa/PROD/CDR/'),'/incoming'),substr(short_filename,instr(short_filename,'2015'),8),
+CASE PROCESSING_STATUS 
+WHEN 'LOADED' THEN  'PROCESSED'
+WHEN 'ARCHIVED' THEN  'PROCESSED'
+WHEN 'ARCHIVEFAILED' THEN  'PROCESSED'
+WHEN 'ARCHFAILED' THEN  'PROCESSED'
+WHEN 'ARCHIVING' THEN  'PROCESSED'
+ELSE
+PROCESSING_STATUS  
+END
+ORDER BY substr(short_filename,instr(short_filename,'2015'),8);
+
+
+/
+--------------------AVERAGE RUNS PER HOUR
+select * from (
+  SELECT dw_run_id,dw_batch_id,dw_task_id, task,start_date,end_date,rows_loaded,run_status, 
+        ROUND((24 * 60 * 60 * (end_date - start_date)) / 60,2) DURATION,-- DIRECT_EXEC_SQL,
+        ROUND(rows_loaded /(24  *60 * 60 * (end_date - start_date)),2) rows_persec,
+        'select * from dw_rt_log_app where DW_RUN_ID='||DW_RUN_ID|| ' and DW_TASK_ID= '||DW_TASK_ID||';' log_app_check
+    FROM dw_rt_runs 
+    WHERE task LIKE '%TF_S2S_MSC_CDR%'
+ and run_status = 'SUCCESS'  
+ORDER BY end_date DESC)
+where rownum <= 100
+--and rows_loaded <=97351
+ ;
+
+
+-------------------------Masindi's file speed observation report----------------------
+-------------------------Masindi's file speed observation report----------------------
+select task,TO_CHAR(end_date,'YYYYMMDD') DATE_KEY,  TO_CHAR(end_date,'HH24') HRS,
+AVG(DURATION) DURATION,AVG(rows_loaded) rows_loaded, AVG(rows_persec) rows_persec, sum(rows_loaded) total_records from (
+  SELECT /*+parallel 20*/ dw_run_id,dw_batch_id,dw_task_id, task,start_date,end_date,rows_loaded,run_status, 
+        ROUND((24*60*60*(end_date - start_date)) / 60,2) DURATION,-- DIRECT_EXEC_SQL,
+        ROUND(rows_loaded /(24*60*60*(end_date - start_date)),2) rows_persec, 
+        'select * from dw_rt_log_app where DW_RUN_ID='||DW_RUN_ID|| ' and DW_TASK_ID= '||DW_TASK_ID||';' log_app_check
+    FROM dw_rt_runs 
+    WHERE task LIKE '%TF_S2S_CS5_CCN_GPRS_DA%'
+ and run_status = 'SUCCESS'  
+ AND TRUNC(END_DATE) >= TRUNC(SYSDATE)-1
+ORDER BY end_date DESC)
+--where rownum <= 100
+GROUP BY task,TO_CHAR(end_date,'YYYYMMDD'),  TO_CHAR(end_date,'HH24')
+order by HRS
+;
+/
+
+-------------------------------------------FROM Ron-----------------------------------------
+-------------------------------------------FROM Ron-----------------------------------------
+
+select dw_run_id, concat_start, concat_end, message,
+       round(to_number(substr(message, instr(message, ' ',1,5)+1 , (instr(message, ' ', 1,6) - instr(message, ' ',1,5)))) /*rows_loaded*/ /
+             to_number(substr(message, instr(message, ' ',1,3)+1 , (instr(message, ' ', 1,4) - instr(message, ' ',1,3)))) /*load_elapsed*/, 2) rows_loaded_per_second,
+       round((concat_end - concat_start)*24*60, 2) Concat_Elapsed_Mins
+from (select dw_run_id, max(concat_start) concat_start, max(concat_end) concat_end, max(message) message
+      from (
+            SELECT dw_run_id,
+                   case when message like '  Concatenating DAT File%' then error_sysdate else null end as concat_start,
+                   case when message like '  Concatenated DAT File Created:%' then error_sysdate else null end as concat_end,
+                   case when message like '1-2) STEP END%' then message else null end as message
+            from DW_RT_LOG_APP a
+            WHERE 1=1
+            and dw_task_id = dw_get_task_id('TF_S2S_MSC_CDR')
+            AND    error_sysdate > SYSDATE - 10
+            and message not like 'Started%'
+--            and dw_task_id in (11003)
+            and (   message like '  Concatenating DAT File%'
+                 or message like '  Concatenated DAT File Created:%'
+                 or message like '1-2) STEP END%'
+                )
+            order by 1, 4
+            )
+      group by dw_run_id
+    )
+order by 2
+
+
+;
+/
+
+--------Other speed observation from MAsindi----that has  a DATE_KEY---
+
+select /*+ parallel(10)*/ 
+task,TO_CHAR(end_date,'YYYYMMDD') DATE_KEY,  
+TO_CHAR(end_date,'HH24') HRS,
+AVG(DURATION) DURATION,AVG(rows_loaded) rows_loaded, AVG(rows_persec) rows_persec, sum(rows_loaded) total_records from (
+  SELECT /*+parallel 20*/ dw_run_id,dw_batch_id,dw_task_id, task,start_date,end_date,rows_loaded,run_status, 
+        ROUND((24*60*60*(end_date - start_date)) / 60,2) DURATION,-- DIRECT_EXEC_SQL,
+        ROUND(rows_loaded /(24*60*60*(end_date - start_date)),2) rows_persec, 
+        'select * from dw_rt_log_app where DW_RUN_ID='||DW_RUN_ID|| ' and DW_TASK_ID= '||DW_TASK_ID||';' log_app_check
+    FROM dw_rt_runs 
+    WHERE task LIKE 'TF_S2S_CS5_CCN_GPRS_DA%'
+ and run_status = 'SUCCESS'  
+ AND TRUNC(END_DATE) >= TRUNC(SYSDATE)-1
+ORDER BY end_date DESC)
+--where rownum <= 100
+GROUP BY task,TO_CHAR(end_date,'YYYYMMDD'),  TO_CHAR(end_date,'HH24');
+--/
+----------------MSC_UNRATED  staging counts ---from Vuyani
+--create table MSC_UNRATED_staging counts_20150507  as 
+--SELECT /*+PARALLEL (20) */ DATE_KEY,COUNT(*) RECORD_COUNT, COUNT(DISTINCT MSISDN_NSK)  MSISDN_NSK
+--FROM BIB_CDR.FCT_CDR_UNRATED --PARTITION FOR(20150222)
+--WHERE source_system_cd = 'MSC_CDR'
+--and usage_type_key = '4'
+--GROUP BY DATE_KEY
+--ORDER BY DATE_KEY;
+
+------------------------------------Registration PER HOUR - Vuyani-------------
+
+ SELECT to_char(start_date,'yyyymmdd') date_key, to_char(start_date,'HH24') hrs, task ,start_date, end_date, files_moved , (24*60*60 * (end_date - start_date)) DURATION,
+  files_moved/(24*60*60 * (end_date - start_date)) file_per_sec,
+  Files_read,Files_in_GL_TB,
+  start_befr_GET_DIR,start_after_GET_DIR,start_befor_move,end_after_move,
+  ROUND((24*60*60*(start_after_GET_DIR - start_befr_GET_DIR)) / 60,2) DURATION_GET_DIR,
+  ROUND((24*60*60*(end_after_move - start_befor_move)) / 60,2) DURATION_MOVE,
+  logs_cnt
+   FROM (
+  SELECT /*+ PARALLEL 20*/ id_2, dw_task_id, 
+         MAX (CASE WHEN MESSAGE LIKE '%Task: TF_%' THEN error_sysdate END) start_date,
+         MAX (CASE WHEN MESSAGE LIKE 'END: File Task Register' THEN error_sysdate END) end_date,
+         MAX (CASE WHEN MESSAGE LIKE '%Do_Batch_Move: Move Success Update activity count:%' THEN
+             TRIM (REPLACE (MESSAGE,'Do_Batch_Move: Move Success Update activity count:'))END) files_moved,
+        MAX (CASE WHEN MESSAGE LIKE '%LoadGlobalFileTable_DoBatch: Success - rowcount:%' THEN
+             TRIM (REPLACE (MESSAGE,'LoadGlobalFileTable_DoBatch: Success - rowcount:'))END) Files_read,
+        MAX (CASE WHEN MESSAGE LIKE '%End: Load Global File Table for Task%' THEN
+             TRIM (REPLACE (MESSAGE,'End: Load Global File Table for Task'))END) Files_in_GL_TB, 
+        MAX(CASE WHEN MESSAGE LIKE '%Do_Batch_ReadIncomingDirectory: do_batch cmd: /data01/infa/PROD/scripts/do_batch.sh GET_DIR%' THEN error_sysdate END) start_befr_GET_DIR,
+        MAX(CASE WHEN MESSAGE LIKE '%Do_Batch_ReadIncomingDirectory: Reading: file_task_register%' THEN error_sysdate END) start_after_GET_DIR,
+        MAX(CASE WHEN MESSAGE LIKE '%Do_Batch_Move_Worker(MOVE): do_batch cmd: /data01/infa/PROD/scripts/do_batch.sh REG_MOVE%' THEN error_sysdate END) start_befor_move,
+        MAX(CASE WHEN MESSAGE LIKE '%Do_Batch_Move_Worker(MOVE): do_batch ret%' THEN error_sysdate END) end_after_move,       
+             count(*) logs_cnt
+    FROM dw_rt_log_app a
+   WHERE --DW_TASK_ID = 15739  and
+         PROCESS_NAME = 'DW_FILE_TASK_REGISTER'
+--AND dw_log_id BETWEEN 9737768706 AND 9738404387
+         AND error_sysdate > sysdate -3
+--         BETWEEN TO_DATE ('20150506 000001','yyyymmdd hh24miss')
+--                               AND TO_DATE ('20150511 235959','yyyymmdd hh24miss')
+GROUP BY id_2, DW_TASK_ID) a, dw_tasks b 
+where a.dw_task_id = b.dw_task_id
+--AND  logs_cnt = 34
+AND FILES_MOVED IS NOT NULL;
+
+/
+
+-------------------------------------------20150917 from Mr Director-----------------------
+
+SELECT /*+ parallel (10)*/
+
+ task_type, b.flex2 node, a.task, a.dw_batch_id , a.start_date,a.end_date, 
+         to_char(a.end_date,'YYYYMMDD') date_key, to_char(a.end_date,'HH24') hrs, rows_loaded,--run_status, 
+         ROUND((24*60*60*(A.end_date - A.start_date))/60,2) DURATION,
+         ROUND(rows_loaded/NULLIF(24*60*60 * (A.end_date - A.start_date),0),0) rows_persec
+--  ,DIRECT_EXEC_SQL
+--  ,diy_parameter, RUN_STATUS
+--  , remark ,'select * from dw_rt_log_app where dw_task_id='||a.dw_task_id||' and dw_batch_id='||A.dw_batch_id||'  and dw_run_id='||A.dw_run_id||' AND error_sysdate >= sysdate-0.1 and dw_inst_id='|| REPLACE(SUBSTR(TRIM(remark),-2),';','')||' order by 1 desc;' get_run_detail_logs
+--  ,DW_RUN_ID,'select ROUND((24*60*60*(A.end_date-A.start_date))/60,2) DURATION,ROUND(rows_loaded/NULLIF(24*60*60*(A.end_date - A.start_date), 0),0)rows_persec, a.* from DW_RT_RANGE_RUNS A where dw_run_id='||A.dw_run_id||';' range_runs
+    FROM dw_rt_runs a, dw_tasks b
+--   WHERE (a.task like 'CS5_TE_S2C_FCT                                                                  HHHHHHHHHHHHHHHHHH_CDR_PREPAID_RATED_DED_CCN_GPRS_DA' /* File loaders */ or  a.task like '%123%') 
+   WHERE (a.task like 'CS5_TE_S2C_FCT_CDR_PREPAID_RATED_CCN_GPRS_MA' /* File loaders */ or  a.task like '%123%')   
+ --  and DW_RUN_ID=5301790
+/*low level fact loaders*/
+--STD_S2C_FCT_CDR_PREPAID_RATED_CCN_VOICE_MA_CHK
+-- WHERE a.TASK IN
+--       ('CS5_TE_S2C_FCT_CDR_PREPAID_RATED_DED_CCN_GPRS_DA',
+--          'CS5_TE_S2C_FCT_CDR_PREPAID_RATED_CCN_VOICE_MA',
+--        --'CS5_TE_S2C_FCT_CDR_PREPAID_RATED_CCN_GPRS_MA'
+--          'CS5_TE_S2C_FCT_CDR_ADJUSTMENT_SDP_ACC_ADJ_MA',
+--'STD_TE_S2C_FCT_CDR_UNRATED_7_INT')2
+/*  a.task in ('CS5_TE_S2C_FCT_CDR_ADJUSTMENT_SDP_ACC_ADJ_MA'
+,'CS5_TE_S2C_FCT_CDR_PREPAID_RATED_CCN_VOICE_MA'
+,'CS5_TE_S2C_FCT_CDR_PREPAID_RATED_DED_CCN_GPRS_DA'
+,'CS5_TE_S2C_FCT_CDR_PREPAID_RATED_CCN_GPRS_MA')*/
+AND run_status  in ('SUCCESS','CLOSED')
+--and a.dw_run_id  in (5557272, 5518880, 5557275, 5453802, 5513493,
+--5513498,5557273
+--)
+--and DW_RUN_ID=1775432
+--and DW_RUN_ID=5138711
+--AND run_status  in ('SUCCESS','CLOSED','RUNNING','FAILED') 
+  --and a.DW_RUN_ID=5301787 and a.DW_TASK_ID=139191
+  --AND run_status not in ('DELAYED','CANCELLED')
+AND TRUNC(A.START_DATE) >= TRUNC(SYSDATE)
+--and rows_loaded > 0
+-- and dw_batch_id in ( 3912732,3911424)
+--,no
+-- 2286140) --yes
+-- and dw_batch_id = 2889645
+--and DW_RUN_ID=5375737
+and a.dw_task_id = b.dw_task_id
+ORDER BY A.END_DATE desc;
+
+
+
